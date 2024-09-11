@@ -52,7 +52,7 @@ class ScratchBoxController extends Controller
         DB::beginTransaction();
         try {
             // Deduct BNB from user
-            if (!$user->lockAsset('bnb', $scratchBox->price)) {
+            if (!$user->removeAsset('bnb', $scratchBox->price)) {
                 throw new \Exception('Failed to lock BNB for purchase.');
             }
             $scratchBox->update([
