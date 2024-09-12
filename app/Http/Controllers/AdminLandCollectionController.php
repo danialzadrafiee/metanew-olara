@@ -2,17 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InactiveLand;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Models\Land;
 use App\Models\LandCollection;
-use Log;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AdminLandCollectionController extends Controller
 {
-   
-    
     public function getCollections()
     {
         $collections = LandCollection::withCount('lands')->orderBy('created_at', 'desc')->get();
@@ -40,20 +35,26 @@ class AdminLandCollectionController extends Controller
     {
         Log::info('Attempting to delete land collection', ['collection_id' => $id]);
         try {
-            DB::beginTransaction();
-
             $collection = LandCollection::findOrFail($id);
+
+            // Check if the collection contains sold land
+            if ($collection->contain_sold_land) {
+                Log::warning('Deletion attempt failed: Collection contains sold land', ['collection_id' => $id]);
+                return response()->json(['error' => 'Cannot delete collection containing sold land'], 400);
+            }
+
             $landsCount = $collection->lands()->count();
-            $collection->lands()->delete();
-            $collection->delete();
-            DB::commit();
-            Log::info('Collection and associated lands deleted successfully', [
-                'collection_id' => $id,
-                'lands_deleted' => $landsCount
-            ]);
-            return response()->json(['message' => 'Collection and associated lands deleted successfully'], 200);
+
+            if ($collection->delete()) {
+                Log::info('Collection and associated lands deleted successfully', [
+                    'collection_id' => $id,
+                    'lands_deleted' => $landsCount
+                ]);
+                return response()->json(['message' => 'Collection and associated lands deleted successfully'], 200);
+            } else {
+                throw new \Exception('Delete operation failed');
+            }
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Delete failed', [
                 'collection_id' => $id,
                 'error' => $e->getMessage(),
@@ -70,17 +71,18 @@ class AdminLandCollectionController extends Controller
             'active_collections' => 'required|array',
             'active_collections.*' => 'integer|exists:land_collections,id',
         ]);
-        DB::beginTransaction();
+
         try {
-            LandCollection::query()->update(['is_active' => false]);
-            LandCollection::whereIn('id', $request->active_collections)->update(['is_active' => true]);
-            DB::commit();
-            Log::info('Active collections updated successfully', [
-                'active_collections' => $request->active_collections
-            ]);
-            return response()->json(['message' => 'Active collections updated successfully'], 200);
+            $result = LandCollection::updateActiveCollections($request->active_collections);
+            if ($result) {
+                Log::info('Active collections updated successfully', [
+                    'active_collections' => $request->active_collections
+                ]);
+                return response()->json(['message' => 'Active collections updated successfully'], 200);
+            } else {
+                throw new \Exception('Update operation failed');
+            }
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Update active collections failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -92,23 +94,18 @@ class AdminLandCollectionController extends Controller
     public function lockLands($collectionId)
     {
         Log::info('Attempting to lock lands', ['collection_id' => $collectionId]);
-        DB::beginTransaction();
-
         try {
             $collection = LandCollection::findOrFail($collectionId);
-            $landsCount = $collection->lands()->count();
-            $collection->lands()->update(['is_locked' => true]);
-            $collection->is_locked = true;
-            $collection->save();
-
-            DB::commit();
-            Log::info('Lands locked successfully', [
-                'collection_id' => $collectionId,
-                'lands_locked' => $landsCount
-            ]);
-            return response()->json(['message' => 'Lands locked successfully'], 200);
+            if ($collection->lockLands()) {
+                Log::info('Lands locked successfully', [
+                    'collection_id' => $collectionId,
+                    'lands_locked' => $collection->lands()->count()
+                ]);
+                return response()->json(['message' => 'Lands locked successfully'], 200);
+            } else {
+                throw new \Exception('Lock operation failed');
+            }
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Lock lands failed', [
                 'collection_id' => $collectionId,
                 'error' => $e->getMessage(),
@@ -121,45 +118,25 @@ class AdminLandCollectionController extends Controller
     public function unlockLands($collectionId)
     {
         Log::info('Attempting to unlock lands', ['collection_id' => $collectionId]);
-        DB::beginTransaction();
-    
         try {
             $collection = LandCollection::findOrFail($collectionId);
-    
-            // Check if any land in the collection is in a scratch box
-            $landInScratchBox = $collection->lands()
-                ->whereHas('scratchBoxes', function ($query) {
-                    $query->where('status', '!=', 'opened');
-                })
-                ->with('scratchBoxes')
-                ->first();
-    
-            if ($landInScratchBox) {
-                $scratchBox = $landInScratchBox->scratchBoxes->first();
-                DB::rollBack();
+            $result = $collection->unlockLands();
+
+            if ($result === true) {
+                Log::info('Lands unlocked successfully', [
+                    'collection_id' => $collectionId,
+                    'lands_unlocked' => $collection->lands()->count()
+                ]);
+                return response()->json(['message' => 'Lands unlocked successfully'], 200);
+            } elseif ($result === 'scratch_box') {
                 return response()->json([
                     'error' => 'This collection cannot be unlocked.',
-                    'reason' => 'Land is in a scratch box',
-                    'scratch_box' => [
-                        'id' => $scratchBox->id,
-                        'name' => $scratchBox->name // Assuming the scratch box has a 'name' attribute
-                    ]
+                    'reason' => 'Land is in a scratch box'
                 ], 400);
+            } else {
+                throw new \Exception('Unlock operation failed');
             }
-    
-            $landsCount = $collection->lands()->count();
-            $collection->lands()->update(['is_locked' => false]);
-            $collection->is_locked = false;
-            $collection->save();
-    
-            DB::commit();
-            Log::info('Lands unlocked successfully', [
-                'collection_id' => $collectionId,
-                'lands_unlocked' => $landsCount
-            ]);
-            return response()->json(['message' => 'Lands unlocked successfully'], 200);
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Unlock lands failed', [
                 'collection_id' => $collectionId,
                 'error' => $e->getMessage(),
@@ -169,52 +146,24 @@ class AdminLandCollectionController extends Controller
         }
     }
 
-    
     public function toggleActive($id)
     {
         Log::info('Attempting to toggle active status', ['collection_id' => $id]);
         try {
-            DB::beginTransaction();
-    
-            $collection = LandCollection::lockForUpdate()->findOrFail($id);
-            $newActiveStatus = !$collection->is_active;
-    
-            if ($newActiveStatus) {
-                // Activating the collection
-                InactiveLand::where('land_collection_id', $collection->id)
-                    ->chunkById(1000, function ($lands) {
-                        foreach ($lands as $land) {
-                            Land::create($land->getAttributes());
-                            $land->delete();
-                        }
-                    });
+            $collection = LandCollection::findOrFail($id);
+            if ($collection->toggleActive()) {
+                Log::info('Collection active status toggled successfully', [
+                    'collection_id' => $id,
+                    'is_active' => $collection->is_active
+                ]);
+                return response()->json([
+                    'message' => 'Collection active status toggled successfully',
+                    'is_active' => $collection->is_active
+                ], 200);
             } else {
-                // Deactivating the collection
-                $collection->lands()
-                    ->chunkById(1000, function ($lands) {
-                        foreach ($lands as $land) {
-                            InactiveLand::create($land->getAttributes());
-                            $land->delete();
-                        }
-                    });
+                throw new \Exception('Toggle operation failed');
             }
-    
-            $collection->update(['is_active' => $newActiveStatus]);
-    
-            DB::commit();
-    
-            Log::info('Collection active status toggled successfully', [
-                'collection_id' => $id,
-                'is_active' => $newActiveStatus
-            ]);
-    
-            return response()->json([
-                'message' => 'Collection active status toggled successfully',
-                'is_active' => $newActiveStatus
-            ], 200);
-    
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Toggle active status failed', [
                 'collection_id' => $id,
                 'error' => $e->getMessage(),
@@ -223,7 +172,7 @@ class AdminLandCollectionController extends Controller
             return response()->json(['error' => 'Toggle failed: ' . $e->getMessage()], 500);
         }
     }
- 
+
     public function updateLandType(Request $request, $id)
     {
         Log::info('Attempting to update land type', ['collection_id' => $id, 'new_type' => $request->type]);
@@ -231,23 +180,18 @@ class AdminLandCollectionController extends Controller
             'type' => 'required|in:normal,mine',
         ]);
 
-        DB::beginTransaction();
-
         try {
             $collection = LandCollection::findOrFail($id);
-            $collection->type = $request->type;
-            $collection->save();
-
-            $collection->lands()->update(['type' => $request->type]);
-
-            DB::commit();
-            Log::info('Land type updated successfully', [
-                'collection_id' => $id,
-                'new_type' => $request->type
-            ]);
-            return response()->json(['message' => 'Land type updated successfully'], 200);
+            if ($collection->updateLandType($request->type)) {
+                Log::info('Land type updated successfully', [
+                    'collection_id' => $id,
+                    'new_type' => $request->type
+                ]);
+                return response()->json(['message' => 'Land type updated successfully'], 200);
+            } else {
+                throw new \Exception('Update operation failed');
+            }
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Update land type failed', [
                 'collection_id' => $id,
                 'error' => $e->getMessage(),

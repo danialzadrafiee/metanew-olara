@@ -18,7 +18,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $with = ['assets', 'quests'];
+    protected $with = ['assets', 'quests', 'city'];
     
     protected $appends = ['formatted_assets'];
 
@@ -26,7 +26,10 @@ class User extends Authenticatable
     {
         return $this->assets->pluck('formatted', 'type')->toArray();
     }
-
+    public function city(): BelongsTo
+    {
+        return $this->belongsTo(City::class);
+    }
     protected static function boot()
     {
         parent::boot();

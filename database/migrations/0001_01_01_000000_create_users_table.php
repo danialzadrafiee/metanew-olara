@@ -10,6 +10,7 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->integer('role')->nullable()->default(0);
+            $table->integer('city_id')->nullable()->default(0);
             $table->string('address')->unique();
             $table->string('nickname')->nullable();
             $table->string('avatar_url')->nullable();

@@ -26,17 +26,18 @@ class DatabaseSeeder extends Seeder
         ]);
         $this->call([
             QuestsTableSeeder::class,
+            CitySeeder::class
         ]);
 
-        // $this->call([
-        //     UsersTableSeeder::class,
-        //     AssetsTableSeeder::class,
-        //     LandsTableSeeder::class,
-        //     AuctionsTableSeeder::class,
-        //     LandCollectionsTableSeeder::class,
-        //     ScratchBoxesTableSeeder::class,
-        //     ScratchBoxLandTableSeeder::class,
-        // ]);
+        $this->call([
+            // UsersTableSeeder::class,
+            // AssetsTableSeeder::class,
+            // LandsTableSeeder::class,
+            // AuctionsTableSeeder::class,
+            // LandCollectionsTableSeeder::class,
+            // ScratchBoxesTableSeeder::class,
+            // ScratchBoxLandTableSeeder::class,
+        ]);
         
         // $tokens = DB::table('personal_access_tokens')->get();
         // foreach ($tokens as $token) {

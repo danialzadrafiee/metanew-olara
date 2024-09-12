@@ -14,6 +14,32 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class UserController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $query = User::query();
+
+        // Filter by nickname
+        if ($request->has('nickname') && !empty($request->nickname)) {
+            $query->where('nickname', 'like', '%' . $request->nickname . '%');
+        }
+
+        // Filter by role
+        if ($request->has('role') && $request->role !== 'all') {
+            $query->where('role', $request->role);
+        }
+
+        // Filter by city_id
+        if ($request->has('city_id') && !empty($request->city_id)) {
+            $query->where('city_id', $request->city_id);
+        }
+
+        // Paginate the results
+        $perPage = $request->input('per_page', 10); // Default to 10 items per page
+        $users = $query->paginate($perPage);
+
+        return response()->json($users);
+    }
     private function authenticateWithToken($token, $address)
     {
         $tokenModel = PersonalAccessToken::findToken($token);
@@ -56,7 +82,7 @@ class UserController extends Controller
             $user->tokens()->delete();
             $newToken = $user->createToken('auth_token', ['*'], $this->getTokenExpiration());
             Log::info('New token created', ['token_id' => $newToken->accessToken->id]);
-    
+
             return $this->respondWithToken($newToken->plainTextToken, $user);
         } catch (\Exception $e) {
             Log::error('Token creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
@@ -64,7 +90,7 @@ class UserController extends Controller
         }
     }
 
-    
+
     private function isTokenExpired($token)
     {
         if ($token->expires_at) {
@@ -97,14 +123,14 @@ class UserController extends Controller
         try {
             $recoveredAddress = Accounts::signedMessageToAddress($request->message, $request->signature);
             $isVerified = strtolower($recoveredAddress) == strtolower($request->address);
-    
+
             Log::info('Signature verification attempt', [
                 'message' => $request->message,
                 'provided_address' => $request->address,
                 'recovered_address' => $recoveredAddress,
                 'is_verified' => $isVerified
             ]);
-    
+
             return $isVerified;
         } catch (\Exception $e) {
             Log::error('Signature verification failed', [
@@ -113,7 +139,7 @@ class UserController extends Controller
                 'error' => $e->getMessage(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-    
+
             return false;
         }
     }
@@ -156,6 +182,7 @@ class UserController extends Controller
             'avatar_url' => 'sometimes|string|max:255',
             'coordinates' => 'sometimes|json',
             'nickname' => 'sometimes|string|min:3|max:80',
+            'city_id' => 'sometimes|integer|min:0',
         ]);
 
         try {

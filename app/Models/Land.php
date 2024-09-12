@@ -33,8 +33,6 @@ class Land extends Model
         'fixed_price' => 'double',
     ];
 
-
-
     
     public function coordinates(): Attribute
     {

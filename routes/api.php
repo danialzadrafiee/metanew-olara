@@ -15,6 +15,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminLandCollectionController;
 use App\Http\Controllers\AdminLandCollectionImportController;
 use App\Http\Controllers\BuildingController;
+use App\Http\Controllers\CityController;
 use App\Http\Controllers\MarketLandController;
 use App\Http\Controllers\ScratchBoxController;
 use App\Http\Controllers\UserSpotController;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 
 // User Authentication and Profile
 Route::post('user/authenticate', [UserController::class, 'authenticate']);
+Route::get('users', [UserController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('user/show', [UserController::class, 'show']);
     Route::post('user/update', [UserController::class, 'update']);
@@ -142,3 +144,10 @@ Route::get('admin/scratch-boxes/available-lands', [AdminScratchBoxController::cl
 Route::get('cron/auctions-process', [CronController::class, 'processAllAuctions']);
 Route::get('cron/force-process-auction', [CronController::class, 'forceAllProcessAllAuctions']);
 Route::get('fpa', [CronController::class, 'forceAllProcessAllAuctions']);
+
+
+Route::get('/cities', [CityController::class, 'index']);
+Route::post('/cities/store', [CityController::class, 'store']);
+Route::get('/cities/show/{id}', [CityController::class, 'show']);
+Route::post('/cities/update/{id}', [CityController::class, 'update']);
+Route::post('/cities/delete/{id}', [CityController::class, 'destroy']);
