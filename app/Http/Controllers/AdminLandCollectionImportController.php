@@ -160,8 +160,8 @@ class AdminLandCollectionImportController extends Controller
                 return "Invalid geometry structure at feature index $index";
             }
 
-            if ($feature->geometry->type !== 'MultiPolygon') {
-                return "Invalid geometry type at feature index $index. Expected 'MultiPolygon'";
+            if ($feature->geometry->type !== 'MultiPolygon' && $feature->geometry->type !== 'Polygon') {
+                return "Invalid geometry type at feature index $index. Expected 'MultiPolygon' or 'Polygon'";
             }
         }
 

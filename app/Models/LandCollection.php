@@ -12,19 +12,18 @@ class LandCollection extends Model
 {
     use HasFactory;
 
-    protected $appends = ['contain_sold_land'];
+    protected $appends = ['contain_sold_land', 'contain_active_auction'];
     protected $fillable = ['is_active', 'is_locked', 'type'];
 
     public function lands(): HasMany
     {
         return $this->hasMany(Land::class);
     }
-
-    public function backup(): HasOne
+    public function getContainActiveAuctionAttribute(): bool
     {
-        return $this->hasOne(LandCollectionBackup::class);
+        return $this->lands()->whereHas('activeAuction')->exists();
     }
-
+   
     public function getContainSoldLandAttribute(): bool
     {
         return $this->lands()->where('owner_id', '!=', 1)->exists();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LandCollection;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -36,30 +37,48 @@ class AdminLandCollectionController extends Controller
         Log::info('Attempting to delete land collection', ['collection_id' => $id]);
         try {
             $collection = LandCollection::findOrFail($id);
-
-            // Check if the collection contains sold land
+            
             if ($collection->contain_sold_land) {
                 Log::warning('Deletion attempt failed: Collection contains sold land', ['collection_id' => $id]);
                 return response()->json(['error' => 'Cannot delete collection containing sold land'], 400);
             }
-
+            
+            // Start a database transaction
+            DB::beginTransaction();
+            
+            // Delete associated lands
             $landsCount = $collection->lands()->count();
-
-            if ($collection->delete()) {
-                Log::info('Collection and associated lands deleted successfully', [
-                    'collection_id' => $id,
-                    'lands_deleted' => $landsCount
-                ]);
-                return response()->json(['message' => 'Collection and associated lands deleted successfully'], 200);
-            } else {
-                throw new \Exception('Delete operation failed');
+            $deletedLandsCount = $collection->lands()->delete();
+            
+            if ($deletedLandsCount !== $landsCount) {
+                throw new \Exception('Failed to delete all associated lands');
             }
+            
+            // Delete the collection
+            if (!$collection->delete()) {
+                throw new \Exception('Failed to delete the collection');
+            }
+            
+            // Commit the transaction
+            DB::commit();
+            
+            Log::info('Collection and associated lands deleted successfully', [
+                'collection_id' => $id,
+                'lands_deleted' => $deletedLandsCount
+            ]);
+            
+            return response()->json(['message' => 'Collection and associated lands deleted successfully'], 200);
+            
         } catch (\Exception $e) {
+            // Rollback the transaction in case of any error
+            DB::rollBack();
+            
             Log::error('Delete failed', [
                 'collection_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            
             return response()->json(['error' => 'Delete failed: ' . $e->getMessage()], 500);
         }
     }
@@ -121,12 +140,7 @@ class AdminLandCollectionController extends Controller
         try {
             $collection = LandCollection::findOrFail($collectionId);
             $result = $collection->unlockLands();
-
             if ($result === true) {
-                Log::info('Lands unlocked successfully', [
-                    'collection_id' => $collectionId,
-                    'lands_unlocked' => $collection->lands()->count()
-                ]);
                 return response()->json(['message' => 'Lands unlocked successfully'], 200);
             } elseif ($result === 'scratch_box') {
                 return response()->json([
@@ -134,6 +148,7 @@ class AdminLandCollectionController extends Controller
                     'reason' => 'Land is in a scratch box'
                 ], 400);
             } else {
+                Log::error('Unlock operation failed with unknown result', ['result' => $result]);
                 throw new \Exception('Unlock operation failed');
             }
         } catch (\Exception $e) {

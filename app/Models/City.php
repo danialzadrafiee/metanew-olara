@@ -27,4 +27,4 @@ class City extends Model
         'marker_spawn_coordinates' => 'array',
         'gems_spawn_coordinates' => 'array',
     ];
-}
+}   
