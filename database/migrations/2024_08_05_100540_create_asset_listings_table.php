@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('asset_type');
-            $table->unsignedBigInteger('amount');
-            $table->unsignedBigInteger('price_in_bnb');
+            $table->double('amount');
+            $table->double('price_in_bnb');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

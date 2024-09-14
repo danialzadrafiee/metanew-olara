@@ -18,7 +18,7 @@ class AssetTradeController extends Controller
     {
         $validatedData = $request->validate([
             'asset_type' => 'required|string|in:gift,ticket,wood,stone,sand,gold',
-            'amount' => 'required|unsignedBigInteger|min:1',
+            'amount' => 'required|min:1',
             'price' => 'required|numeric|min:0',
         ]);
 

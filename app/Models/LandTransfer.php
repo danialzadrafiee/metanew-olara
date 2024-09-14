@@ -7,14 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class LandTransfer extends Model
 {
-    protected $casts = [
-        'asset_amount' => 'unsignedBigInteger',
-        'receiver_share_amount' => 'unsignedBigInteger',
-        'bank_share_amount' => 'unsignedBigInteger',
-        'foundation_share_amount' => 'unsignedBigInteger',
-        'inviter_share_amount' => 'unsignedBigInteger',
-        'land_transfer_times' => 'integer',
-    ];
+
 
     public function land()
     {
@@ -62,15 +55,20 @@ class LandTransfer extends Model
 
     private static function calculateShares(float $assetAmount, User $seller, int $transferTimes)
     {
+        \Log::debug("Calculate Shares - Asset Amount: " . $assetAmount . ", Transfer Times: " . $transferTimes);
+
         if ($transferTimes === 1) {  // First transfer
             $foundationShare = GameEconomySettings::getValue('first_transfer.foundation_share') * $assetAmount;
+            \Log::debug("Foundation Share: " . $foundationShare);
 
             if ($seller->inviter_id) {
                 $bankShare = GameEconomySettings::getValue('first_transfer.bank_share') * $assetAmount;
                 $inviterShare = GameEconomySettings::getValue('first_transfer.inviter_share') * $assetAmount;
+                \Log::debug("Bank Share: " . $bankShare . ", Inviter Share: " . $inviterShare);
             } else {
                 $bankShare = GameEconomySettings::getValue('first_transfer.bank_share_no_inviter') * $assetAmount;
                 $inviterShare = 0;
+                \Log::debug("Bank Share (No Inviter): " . $bankShare);
             }
 
             $receiverShare = 0;  // The original owner (bank) doesn't receive a share
@@ -80,9 +78,10 @@ class LandTransfer extends Model
             $foundationShare = GameEconomySettings::getValue('subsequent_transfer.foundation_share') * $assetAmount;
             $receiverShare = $sellerShare * $assetAmount;
             $inviterShare = 0;  // No inviter share for subsequent transfers
+            \Log::debug("Seller Share: " . $sellerShare . ", Bank Share: " . $bankShare . ", Foundation Share: " . $foundationShare . ", Receiver Share: " . $receiverShare);
         }
 
-        return [
+        $result = [
             'receiver' => $receiverShare,
             'bank' => $bankShare,
             'foundation' => $foundationShare,
@@ -90,6 +89,10 @@ class LandTransfer extends Model
             'seller_id' => $seller->id,
             'inviter_id' => $seller->inviter_id,
         ];
+
+        \Log::debug("Final Shares: " . json_encode($result));
+
+        return $result;
     }
 
     private function rewardCPForTransfer(User $seller, User $buyer)

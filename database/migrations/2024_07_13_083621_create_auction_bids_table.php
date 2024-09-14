@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('auction_id');
             $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('amount');
+            $table->double('amount');
             $table->timestamps();
         });
     }
@@ -21,4 +21,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('auction_bids');
     }
-};  
+};

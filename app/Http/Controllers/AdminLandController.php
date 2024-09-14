@@ -77,40 +77,39 @@ class AdminLandController extends Controller
 
 
     public function getFilteredLandIds(Request $request)
-{
-    $query = Land::query();
+    {
+        $query = Land::query();
 
-    // Apply the same filters as in the index method
-    if ($request->boolean('filterForSale')) {
-        $query->where('fixed_price', '>', 0);
-    }
-    if ($request->boolean('onlyBankLands')) {
-        $query->where('owner_id', 1);
-    }
-    if ($request->has('selectedCollection')) {
-        $query->where('land_collection_id', $request->input('selectedCollection'));
-    }
-    if ($request->has('searchTerm')) {
-        $searchTerm = $request->input('searchTerm');
-        $query->where(function ($q) use ($searchTerm) {
-            $q->where('id', 'like', '%' . $searchTerm . '%')
-                ->orWhereHas('owner', function ($query) use ($searchTerm) {
-                    $query->where('nickname', 'like', '%' . $searchTerm . '%');
-                });
-        });
-    }
+        // Apply the same filters as in the index method
+        if ($request->boolean('filterForSale')) {
+            $query->where('fixed_price', '>', 0);
+        }
+        if ($request->boolean('onlyBankLands')) {
+            $query->where('owner_id', 1);
+        }
+        if ($request->has('selectedCollection')) {
+            $query->where('land_collection_id', $request->input('selectedCollection'));
+        }
+        if ($request->has('searchTerm')) {
+            $searchTerm = $request->input('searchTerm');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('id', 'like', '%' . $searchTerm . '%')
+                    ->orWhereHas('owner', function ($query) use ($searchTerm) {
+                        $query->where('nickname', 'like', '%' . $searchTerm . '%');
+                    });
+            });
+        }
 
-    $landIds = $query->pluck('id')->toArray();
-    return response()->json($landIds);
-}
+        $landIds = $query->pluck('id')->toArray();
+        return response()->json($landIds);
+    }
 
 
     public function bulkUpdateFixedPrice(Request $request)
     {
         $validatedData = $request->validate([
             'landIds' => 'required|array',
-            'landIds.*' => 'unsignedBigInteger',
-            'fixedPrice' => 'required|numeric',
+            'fixedPrice' => 'required',
         ]);
 
         DB::beginTransaction();
@@ -140,8 +139,7 @@ class AdminLandController extends Controller
     {
         $validatedData = $request->validate([
             'landIds' => 'required|array',
-            'landIds.*' => 'unsignedBigInteger',
-            'pricePerSize' => 'required|numeric',
+            'pricePerSize' => 'required',
         ]);
 
         DB::beginTransaction();

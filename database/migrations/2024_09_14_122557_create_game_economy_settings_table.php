@@ -11,7 +11,7 @@ class CreateGameEconomySettingsTable extends Migration
         Schema::create('game_economy_settings', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
-            $table->decimal('value', 8, 4);
+            $table->double('value');
             $table->timestamps();
         });
 

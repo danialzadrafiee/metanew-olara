@@ -13,18 +13,18 @@ return new class extends Migration
     {
         Schema::create('land_transfers', function (Blueprint $table) {
             $table->id();
-            $table->integer('land_id');
-            $table->integer('seller_user_id');
-            $table->integer('buyer_user_id');
+            $table->unsignedBigInteger('land_id');
+            $table->unsignedBigInteger('seller_user_id');
+            $table->unsignedBigInteger('buyer_user_id');
+            $table->unsignedBigInteger('land_transfer_times')->default(0);
+            $table->double('asset_amount');
             $table->string('transfer_type');
             $table->string('asset_type');
-            $table->unsignedBigInteger('asset_amount');
-            $table->integer('land_transfer_times')->default(false);
             // shares
-            $table->string('receiver_share_amount');
-            $table->string('bank_share_amount');
-            $table->string('foundation_share_amount');
-            $table->string('inviter_share_amount');
+            $table->double('receiver_share_amount');
+            $table->double('bank_share_amount');
+            $table->double('foundation_share_amount');
+            $table->double('inviter_share_amount');
             $table->timestamps();
         });
     }

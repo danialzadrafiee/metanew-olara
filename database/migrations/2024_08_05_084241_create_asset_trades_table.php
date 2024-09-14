@@ -11,9 +11,9 @@ return new class extends Migration
         Schema::create('asset_trades', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('seller_id');
+            $table->double('amount');
+            $table->double('price');
             $table->string('asset_type');
-            $table->unsignedBigInteger('amount');
-            $table->unsignedBigInteger('price');
             $table->timestamps();
         });
     }

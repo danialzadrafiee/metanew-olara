@@ -25,7 +25,7 @@ class AssetController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta,bnb,iron,wood,sand,gold,giftbox,ticket,chest_silver,chest_gold,chest_diamond,scratch_box',
-            'amount' => 'required|min:0|unsignedBigInteger',
+            'amount' => 'required|min:0',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -44,7 +44,7 @@ class AssetController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta,bnb,iron,wood,sand,gold,giftbox,ticket,chest_silver,chest_gold,chest_diamond,scratch_box',
-            'amount' => 'required|min:0|unsignedBigInteger',
+            'amount' => 'required|min:0',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -63,7 +63,7 @@ class AssetController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta,bnb,iron,wood,sand,gold,giftbox,ticket,chest_silver,chest_gold,chest_diamond,scratch_box',
-            'amount' => 'required|min:0|unsignedBigInteger',
+            'amount' => 'required|min:0',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -79,7 +79,7 @@ class AssetController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta,bnb,iron,wood,sand,gold,giftbox,ticket,chest_silver,chest_gold,chest_diamond,scratch_box',
-            'amount' => 'required|min:0|unsignedBigInteger',
+            'amount' => 'required|min:0',
         ]);
 
         return DB::transaction(function () use ($request) {

@@ -93,12 +93,12 @@ class AdminScratchBoxController extends Controller
 
     private function validateScratchBoxData(Request $request)
     {
-   
-            return $request->validate([
-                'name' => 'required|string|max:255',
-                'land_ids' => 'required|array',
-                'land_ids.*' => 'unsignedBigInteger|exists:lands,id',
-            ]);
+
+        return $request->validate([
+            'name' => 'required|string|max:255',
+            'land_ids' => 'required|array',
+            'land_ids.*' => 'exists:lands,id',
+        ]);
     }
 
     private function getValidLandsForScratchBox(array $landIds)

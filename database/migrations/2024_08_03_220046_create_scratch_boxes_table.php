@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::create('scratch_boxes', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->unsignedBigInteger('price')->nullable();
-            $table->enum('status', ['available', 'sold', 'opened'])->default('available');
             $table->unsignedBigInteger('user_id')->default(0);
+            $table->string('name');
+            $table->double('price')->nullable();
+            $table->enum('status', ['available', 'sold', 'opened'])->default('available');
             $table->timestamps();
         });
     }

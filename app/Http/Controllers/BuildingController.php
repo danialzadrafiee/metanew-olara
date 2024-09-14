@@ -14,7 +14,7 @@ class BuildingController extends Controller
         $user = Auth::user();
         $request->validate([
             'land_id' => 'required|exists:lands,id',
-            'building_id' => 'required|unsignedBigInteger'
+            'building_id' => 'required'
         ]);
 
 

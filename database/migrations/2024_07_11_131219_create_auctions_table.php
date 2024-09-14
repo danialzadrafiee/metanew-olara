@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('land_id');
             $table->unsignedBigInteger('owner_id');
-            $table->unsignedBigInteger('minimum_price');
+            $table->double('minimum_price');
             $table->timestamp('start_time');
             $table->timestamp('end_time');
             $table->enum('status', ['active', 'canceled', 'done'])->default('active');

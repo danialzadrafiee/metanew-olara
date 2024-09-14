@@ -88,7 +88,7 @@ class AdminLandCollectionController extends Controller
         Log::info('Updating active collections', ['active_collections' => $request->active_collections]);
         $request->validate([
             'active_collections' => 'required|array',
-            'active_collections.*' => 'unsignedBigInteger|exists:land_collections,id',
+            'active_collections.*' => 'exists:land_collections,id',
         ]);
 
         try {

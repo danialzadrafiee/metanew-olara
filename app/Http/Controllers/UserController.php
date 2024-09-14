@@ -178,11 +178,11 @@ class UserController extends Controller
     {
         $user = $request->user();
         $validatedData = $request->validate([
-            'current_mission' => 'sometimes|unsignedBigInteger|min:0|max:100',
+            'current_mission' => 'sometimes|min:0|max:100',
             'avatar_url' => 'sometimes|string|max:255',
             'coordinates' => 'sometimes|json',
             'nickname' => 'sometimes|string|min:3|max:80',
-            'city_id' => 'sometimes|unsignedBigInteger|min:0',
+            'city_id' => 'sometimes|min:0',
         ]);
 
         try {
