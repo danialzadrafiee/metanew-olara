@@ -94,12 +94,12 @@ class User extends Authenticatable
 
     public function referrer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'referrer_id');
+        return $this->belongsTo(User::class, 'inviter_id');
     }
 
     public function referrals(): HasMany
     {
-        return $this->hasMany(User::class, 'referrer_id');
+        return $this->hasMany(User::class, 'inviter_id');
     }
 
     public function allReferrals(): HasMany
@@ -129,7 +129,7 @@ class User extends Authenticatable
 
     public function applyReferral(string $referralCode): bool
     {
-        if ($this->referrer_id) {
+        if ($this->inviter_id) {
             return false;
         }
 
@@ -138,7 +138,7 @@ class User extends Authenticatable
             return false;
         }
 
-        $this->referrer_id = $referrer->id;
+        $this->inviter_id = $referrer->id;
         return $this->save();
     }
 

@@ -11,20 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('offers', function (Blueprint $table) {
+        Schema::create('banks', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('land_id');
-            $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('price');
-            $table->string('price_currency')->default('bnb');
-            $table->boolean('is_accepted')->default(false);
+            
             $table->timestamps();
         });
     }
 
-
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::dropIfExists('offers');
+        Schema::dropIfExists('banks');
     }
 };

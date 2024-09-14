@@ -15,13 +15,14 @@ return new class extends Migration
             $table->string('image')->nullable();
             $table->string('type')->nullable()->default('normal');
             $table->double('size', 8);
-            $table->integer('owner_id')->nullable()->default(0);
+            $table->unsignedBigInteger('owner_id')->nullable()->default(0);
             $table->double('fixed_price', 16)->nullable()->default(0);
             $table->boolean('is_in_scratch')->default(false);
             $table->boolean('is_locked')->nullable()->default(false);
+            $table->boolean('is_first_time_trade')->nullable()->default(false);
             $table->boolean('is_suspend')->nullable()->default(false);
             $table->boolean('is_owner_landlord')->nullable()->default(false);
-            $table->integer('building_id')->nullable()->default(0);
+            $table->unsignedBigInteger('building_id')->nullable()->default(0);
             $table->string('building_name')->nullable();
             $table->integer('land_collection_id')->nullable()->default(0);
             $table->timestamps();

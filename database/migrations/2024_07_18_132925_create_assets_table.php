@@ -9,10 +9,10 @@ return new class extends Migration
     {
         Schema::create('assets', function (Blueprint $table) {
             $table->id();
-            $table->integer('user_id');
+            $table->unsignedBigInteger('user_id');
             $table->enum('type', ['cp', 'meta', 'bnb', 'iron', 'wood', 'sand', 'gold', 'giftbox', 'ticket', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box']);
-            $table->decimal('amount', 20, 8)->default(0);
-            $table->decimal('locked_amount', 20, 8)->default(0);
+            $table->unsignedBigInteger('amount')->default(0);
+            $table->unsignedBigInteger('locked_amount')->default(0);
             $table->timestamps();
             $table->unique(['user_id', 'type']);
         });

@@ -26,7 +26,7 @@ class CurrencyController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta',
-            'amount' => 'required|decimals|min:0|decimal:0,8',
+            'amount' => 'required|numeric|min:0 ',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -51,7 +51,7 @@ class CurrencyController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta,bnb',
-            'amount' => 'required|min:0|decimal:0,8',
+            'amount' => 'required|min:0 ',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -76,7 +76,7 @@ class CurrencyController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta',
-            'amount' => 'required|min:0|decimal:0,8',
+            'amount' => 'required|min:0 ',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -97,7 +97,7 @@ class CurrencyController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:cp,meta',
-            'amount' => 'required|min:0|decimal:0,8',
+            'amount' => 'required|min:0 ',
         ]);
 
         return DB::transaction(function () use ($request) {

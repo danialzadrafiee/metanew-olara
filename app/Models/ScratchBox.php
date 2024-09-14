@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ScratchBox extends Model
 {
     protected $casts = [
-        'price' => 'decimal:8',
+        'price' => 'unsignedBigInteger',
     ];
     protected $appends = ['type', 'size'];
     public function lands()

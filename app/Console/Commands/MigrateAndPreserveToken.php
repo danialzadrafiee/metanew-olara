@@ -21,7 +21,7 @@ class MigrateAndPreserveToken extends Command
             if ($user) {
                 $userData = $user->only([
                     'id', 'role', 'address', 'nickname', 'avatar_url', 'coordinates',
-                    'current_mission', 'referrer_id', 'referral_code', 'remember_token',
+                    'current_mission', 'inviter_id', 'referral_code', 'remember_token',
                     'created_at', 'updated_at'
                 ]);
                 $token = $user->tokens()->first();

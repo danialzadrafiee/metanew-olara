@@ -15,9 +15,9 @@ return new class extends Migration
         Schema::create('gift_box_contents', function (Blueprint $table) {
             $table->id();
             $table->integer('gift_box_id');
-            $table->string('content_type'); // 'cp', 'meta', 'wood', 'stone', etc.
+            $table->string('content_type'); 
             $table->integer('amount');
-            $table->decimal('probability', 5, 2); // Probability of getting this item (0-100)
+            $table->unsignedBigInteger('probability'); 
             $table->timestamps();
         });
     }

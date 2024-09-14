@@ -13,7 +13,7 @@ class AdminAuctionController extends Controller
     {
         $validatedData = $request->validate([
             'landIds' => 'required|array',
-            'landIds.*' => 'integer',
+            'landIds.*' => 'unsignedBigInteger',
             'minimumPrice' => 'required|numeric',
             'startTime' => 'required|date',
             'endTime' => 'required|date|after:startTime',
@@ -50,7 +50,7 @@ class AdminAuctionController extends Controller
     {
         $validatedData = $request->validate([
             'auctionIds' => 'required|array',
-            'auctionIds.*' => 'integer',
+            'auctionIds.*' => 'unsignedBigInteger',
         ]);
 
         DB::beginTransaction();
@@ -72,7 +72,7 @@ class AdminAuctionController extends Controller
     {
         $validatedData = $request->validate([
             'auctionIds' => 'required|array',
-            'auctionIds.*' => 'integer',
+            'auctionIds.*' => 'unsignedBigInteger',
         ]);
 
         DB::beginTransaction();

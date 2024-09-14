@@ -109,7 +109,7 @@ class AdminLandController extends Controller
     {
         $validatedData = $request->validate([
             'landIds' => 'required|array',
-            'landIds.*' => 'integer',
+            'landIds.*' => 'unsignedBigInteger',
             'fixedPrice' => 'required|numeric',
         ]);
 
@@ -140,7 +140,7 @@ class AdminLandController extends Controller
     {
         $validatedData = $request->validate([
             'landIds' => 'required|array',
-            'landIds.*' => 'integer',
+            'landIds.*' => 'unsignedBigInteger',
             'pricePerSize' => 'required|numeric',
         ]);
 

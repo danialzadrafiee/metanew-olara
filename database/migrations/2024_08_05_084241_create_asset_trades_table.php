@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::create('asset_trades', function (Blueprint $table) {
             $table->id();
-            $table->integer('seller_id');
+            $table->unsignedBigInteger('seller_id');
             $table->string('asset_type');
-            $table->integer('amount');
-            $table->decimal('price', 18, 8);
+            $table->unsignedBigInteger('amount');
+            $table->unsignedBigInteger('price');
             $table->timestamps();
         });
     }

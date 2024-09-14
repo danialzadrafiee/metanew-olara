@@ -41,7 +41,7 @@
             "description": "Arbitrary-precision arithmetic library",
             "keywords": [
                 "Arbitrary-precision",
-                "BigInteger",
+                "unsignedBigInteger",
                 "BigRational",
                 "arithmetic",
                 "bigdecimal",
@@ -3064,7 +3064,7 @@
             "description": "PHP Secure Communications Library - Pure-PHP implementations of RSA, AES, SSH2, SFTP, X.509 etc.",
             "homepage": "http://phpseclib.sourceforge.net",
             "keywords": [
-                "BigInteger",
+                "unsignedBigInteger",
                 "aes",
                 "asn.1",
                 "asn1",

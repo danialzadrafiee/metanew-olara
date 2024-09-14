@@ -299,7 +299,7 @@ namespace App\Models{
  * @property string|null $avatar_url
  * @property string|null $coordinates
  * @property int $current_mission
- * @property int|null $referrer_id
+ * @property int|null $inviter_id
  * @property string|null $referral_code
  * @property string|null $remember_token
  * @property \Illuminate\Support\Carbon|null $created_at

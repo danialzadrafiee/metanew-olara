@@ -18,8 +18,8 @@ class AssetListingController extends Controller
     {
         $validatedData = $request->validate([
             'asset_type' => 'required|string|in:gift,ticket,wood,stone,sand,gold',
-            'amount' => 'required|integer|min:1',
-            'price_in_bnb' => 'required|numeric|min:0|decimal:0,8',
+            'amount' => 'required|unsignedBigInteger|min:1',
+            'price_in_bnb' => 'required|numeric|min:0',
         ]);
         $user = $request->user();
 

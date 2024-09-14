@@ -178,11 +178,11 @@ class UserController extends Controller
     {
         $user = $request->user();
         $validatedData = $request->validate([
-            'current_mission' => 'sometimes|integer|min:0|max:100',
+            'current_mission' => 'sometimes|unsignedBigInteger|min:0|max:100',
             'avatar_url' => 'sometimes|string|max:255',
             'coordinates' => 'sometimes|json',
             'nickname' => 'sometimes|string|min:3|max:80',
-            'city_id' => 'sometimes|integer|min:0',
+            'city_id' => 'sometimes|unsignedBigInteger|min:0',
         ]);
 
         try {
@@ -230,7 +230,7 @@ class UserController extends Controller
                     $errorMessages[] = 'Invalid referral code.';
                 } elseif ($invitor->id === $user->id) {
                     $errorMessages[] = 'You cannot use your own referral code.';
-                } elseif ($user->referrer_id) {
+                } elseif ($user->inviter_id) {
                     $errorMessages[] = 'You have already applied a referral code.';
                 } else {
                     // Apply referral code
@@ -246,9 +246,9 @@ class UserController extends Controller
                     );
                     $invitedUserCpAsset->increment('amount', 500);
 
-                    $user->referrer_id = $invitor->id;
+                    $user->inviter_id = $invitor->id;
                     $referralApplied = true;
-                    $updatedFields[] = 'referrer_id';
+                    $updatedFields[] = 'inviter_id';
                 }
             }
 

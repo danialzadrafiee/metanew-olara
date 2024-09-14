@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('scratch_box_land', function (Blueprint $table) {
             $table->id();
             $table->integer('scratch_box_id');
-            $table->integer('land_id');
+            $table->unsignedBigInteger('land_id');
             $table->timestamps();
         });
     }

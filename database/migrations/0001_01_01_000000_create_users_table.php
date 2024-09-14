@@ -1,7 +1,9 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Models\User;
 
 return new class extends Migration
 {
@@ -16,11 +18,13 @@ return new class extends Migration
             $table->string('avatar_url')->nullable();
             $table->json('coordinates')->nullable();
             $table->integer('current_mission')->default(0);
-            $table->unsignedBigInteger('referrer_id')->nullable();
+            $table->unsignedBigInteger('inviter_id')->nullable();
             $table->string('referral_code')->unique()->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
+
+     
     }
 
     public function down(): void

@@ -23,17 +23,17 @@ class Land extends Model
     protected $with = [
         'landCollection'
     ];
-
     protected $casts = [
         'is_in_scratch' => 'boolean',
         'is_locked' => 'boolean',
         'is_suspend' => 'boolean',
         'is_owner_landlord' => 'boolean',
         'size' => 'double',
+        'is_first_transfer' => 'boolean',
         'fixed_price' => 'double',
     ];
 
-    
+
     public function coordinates(): Attribute
     {
         return Attribute::make(
@@ -199,5 +199,10 @@ class Land extends Model
             'owner_id' => $receiver_id,
             'fixed_price' => 0,
         ]);
+    }
+
+    public function transfers()
+    {
+        return $this->hasMany(LandTransfer::class);
     }
 }

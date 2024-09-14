@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('auctions', function (Blueprint $table) {
             $table->id();
-            $table->integer('land_id');
-            $table->integer('owner_id');
-            $table->decimal('minimum_price', 16);
+            $table->unsignedBigInteger('land_id');
+            $table->unsignedBigInteger('owner_id');
+            $table->unsignedBigInteger('minimum_price');
             $table->timestamp('start_time');
             $table->timestamp('end_time');
             $table->enum('status', ['active', 'canceled', 'done'])->default('active');

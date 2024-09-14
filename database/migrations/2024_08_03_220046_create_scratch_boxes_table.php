@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('scratch_boxes', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->decimal('price')->default(0);
+            $table->unsignedBigInteger('price')->nullable();
             $table->enum('status', ['available', 'sold', 'opened'])->default('available');
             $table->unsignedBigInteger('user_id')->default(0);
             $table->timestamps();

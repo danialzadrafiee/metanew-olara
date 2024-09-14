@@ -16,6 +16,8 @@ use App\Http\Controllers\AdminLandCollectionController;
 use App\Http\Controllers\AdminLandCollectionImportController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\CityController;
+use App\Http\Controllers\GameEconomySettingsController;
+use App\Http\Controllers\LandTransferController;
 use App\Http\Controllers\MarketLandController;
 use App\Http\Controllers\ScratchBoxController;
 use App\Http\Controllers\UserSpotController;
@@ -42,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('assets/add', [AssetController::class, 'add']);
     Route::post('assets/subtract', [AssetController::class, 'subtract']);
 
+
     // Lands
     Route::get('lands', [LandController::class, 'getBoundLands']);
     Route::get('lands/all', [LandController::class, 'all']);
@@ -53,7 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('lands/{id}/set-price', [LandFixedPriceController::class, 'setPrice']);
     Route::post('lands/{id}/update-price', [LandFixedPriceController::class, 'updatePrice']);
     Route::post('lands/{id}/cancel-sell', [LandFixedPriceController::class, 'cancelSell']);
-    Route::post('lands/{id}/buy', [LandFixedPriceController::class, 'acceptBuy']);
+    // Route::post('lands/{id}/buy', [LandFixedPriceController::class, 'acceptBuy']);
     Route::get('marketplace/lands', [MarketLandController::class, 'getMarketplaceLands']);
 
     // Auctions
@@ -70,7 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('offers/submit', [OfferController::class, 'submitOffer']);
     Route::post('offers/delete/{offerId}', [OfferController::class, 'deleteOffer']);
     Route::post('offers/update/{offerId}', [OfferController::class, 'updateOffer']);
-    Route::post('offers/accept/{offerId}', [OfferController::class, 'acceptOffer']);
+    // Route::post('offers/accept/{offerId}', [OfferController::class, 'acceptOffer']);
 
     // Quests
     Route::get('quests', [QuestController::class, 'index']);
@@ -87,7 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('scratch-boxes/available', [ScratchBoxController::class, 'available']);
     Route::get('scratch-boxes/owned', [ScratchBoxController::class, 'owned']);
     Route::post('scratch-boxes/{id}/buy', [ScratchBoxController::class, 'buy']);
-    Route::post('scratch-boxes/{id}/open', [ScratchBoxController::class, 'open']);
+    // Route::post('scratch-boxes/{id}/open', [ScratchBoxController::class, 'open']);
 
     // Asset Listings
     Route::get('asset-listings', [AssetListingController::class, 'index']);
@@ -141,8 +144,8 @@ Route::get('admin/scratch-boxes/all-available-land-ids', [AdminScratchBoxControl
 Route::get('admin/scratch-boxes/available-lands', [AdminScratchBoxController::class, 'getAvailableLands']);
 
 // Cron Jobs
-Route::get('cron/auctions-process', [CronController::class, 'processAllAuctions']);
-Route::get('cron/force-process-auction', [CronController::class, 'forceAllProcessAllAuctions']);
+// Route::get('cron/auctions-process', [CronController::class, 'processAllAuctions']);
+// Route::get('cron/force-process-auction', [CronController::class, 'forceAllProcessAllAuctions']);
 Route::get('fpa', [CronController::class, 'forceAllProcessAllAuctions']);
 
 
@@ -151,3 +154,15 @@ Route::post('/cities/store', [CityController::class, 'store']);
 Route::get('/cities/show/{id}', [CityController::class, 'show']);
 Route::post('/cities/update/{id}', [CityController::class, 'update']);
 Route::post('/cities/delete/{id}', [CityController::class, 'destroy']);
+
+
+
+Route::get('/game_economy_settings', [GameEconomySettingsController::class, 'index']);
+Route::put('/game_economy_settings/{id}', [GameEconomySettingsController::class, 'update']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('lands/{id}/buy', [LandTransferController::class, 'acceptBuy']);
+    Route::post('offers/accept/{offerId}', [LandTransferController::class, 'acceptOffer']);
+    Route::post('scratch-boxes/{id}/open', [LandTransferController::class, 'openScratchBox']);
+});
+Route::get('cron/auctions-process', [LandTransferController::class, 'processAllAuctions']);

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('user_quests', function (Blueprint $table) {
             $table->id();
-            $table->integer('user_id');
+            $table->unsignedBigInteger('user_id');
             $table->integer('quest_id');
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();

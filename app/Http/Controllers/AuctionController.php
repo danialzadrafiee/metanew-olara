@@ -49,11 +49,10 @@ class AuctionController extends Controller
         return response()->json(['message' => 'Auction created successfully', 'auction' => $auction], 201);
     }
 
-
     public function placeBid(Request $request, $auctionId): JsonResponse
     {
         $validatedData = $request->validate([
-            'amount' => 'required|numeric|min:0|decimal:0,8',
+            'amount' => 'required|numeric|min:0',
         ]);
 
         $auction = Auction::findOrFail($auctionId);
@@ -118,8 +117,6 @@ class AuctionController extends Controller
         }
     }
 
-
-
     public function cancelAuction(Request $request, $auctionId): JsonResponse
     {
         $auction = Auction::findOrFail($auctionId);
@@ -153,4 +150,8 @@ class AuctionController extends Controller
             return response()->json(['error' => 'Failed to cancel auction: ' . $e->getMessage()], 500);
         }
     }
+
+
+
+    
 }

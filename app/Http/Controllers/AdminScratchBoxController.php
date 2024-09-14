@@ -97,7 +97,7 @@ class AdminScratchBoxController extends Controller
             return $request->validate([
                 'name' => 'required|string|max:255',
                 'land_ids' => 'required|array',
-                'land_ids.*' => 'integer|exists:lands,id',
+                'land_ids.*' => 'unsignedBigInteger|exists:lands,id',
             ]);
     }
 
