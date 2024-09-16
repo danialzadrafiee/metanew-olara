@@ -14,26 +14,28 @@ use App\Http\Controllers\QuestController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminLandCollectionController;
 use App\Http\Controllers\AdminLandCollectionImportController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BnbSpotController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\GameEconomySettingsController;
 use App\Http\Controllers\LandTransferController;
 use App\Http\Controllers\MarketLandController;
+use App\Http\Controllers\MetaSpotController;
 use App\Http\Controllers\ScratchBoxController;
 use App\Http\Controllers\UserSpotController;
 use Illuminate\Support\Facades\Route;
 
-// User Authentication and Profile
-Route::post('user/authenticate', [UserController::class, 'authenticate']);
+// User Authentication
+Route::post('user/authenticate', [AuthController::class, 'authenticate']);
 Route::get('users', [UserController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('user/show', [UserController::class, 'show']);
     Route::post('user/update', [UserController::class, 'update']);
-    Route::post('user/logout', [UserController::class, 'logout']);
+    Route::post('user/logout', [AuthController::class, 'logout']);
     Route::post('user/update-profile', [UserController::class, 'updateProfile']);
     Route::get('user/referral-tree', [UserController::class, 'getReferralTree']);
 });
-
 Route::middleware('auth:sanctum')->group(function () {
     // Assets
     Route::get('assets', [AssetController::class, 'index']);
@@ -101,9 +103,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('set-land-building-id', [BuildingController::class, 'setLandBuildingid']);
 
-    // SPOT 
-    Route::post('spot/deposit', [UserSpotController::class, 'depositAsset']);
-    Route::post('spot/withdraw', [UserSpotController::class, 'withdrawAsset']);
+    Route::post('/bnb/deposit', [BnbSpotController::class, 'deposit']);
+    Route::post('/bnb/withdraw', [BnbSpotController::class, 'withdraw']);
+    Route::post('/meta/deposit', [MetaSpotController::class, 'deposit']);
+    Route::post('/meta/withdraw', [MetaSpotController::class, 'withdraw']);
 });
 
 // Admin Land
