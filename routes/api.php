@@ -23,7 +23,9 @@ use App\Http\Controllers\LandTransferController;
 use App\Http\Controllers\MarketLandController;
 use App\Http\Controllers\MetaSpotController;
 use App\Http\Controllers\ScratchBoxController;
-use App\Http\Controllers\UserSpotController;
+use App\Http\Controllers\SpotController;
+use App\Http\Controllers\SpotWithdrawController;
+use App\Http\Controllers\TestController;
 use Illuminate\Support\Facades\Route;
 
 // User Authentication
@@ -103,10 +105,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('set-land-building-id', [BuildingController::class, 'setLandBuildingid']);
 
-    Route::post('/bnb/deposit', [BnbSpotController::class, 'deposit']);
-    Route::post('/bnb/withdraw', [BnbSpotController::class, 'withdraw']);
-    Route::post('/meta/deposit', [MetaSpotController::class, 'deposit']);
-    Route::post('/meta/withdraw', [MetaSpotController::class, 'withdraw']);
 });
 
 // Admin Land
@@ -169,3 +167,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('scratch-boxes/{id}/open', [LandTransferController::class, 'openScratchBox']);
 });
 Route::get('cron/auctions-process', [LandTransferController::class, 'processAllAuctions']);
+
+Route::get('spot/update_balances', [SpotController::class, 'updateBalances']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('spot/withdraw_bnb', [SpotWithdrawController::class, 'withdrawBnb']);
+    Route::post('spot/withdraw_meta', [SpotWithdrawController::class, 'withdrawMeta']);
+});
+Route::get('test', [TestController::class, 'sendMetaToken']);

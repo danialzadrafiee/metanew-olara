@@ -13,6 +13,7 @@
         "laravel/tinker": "^2.9",
         "orangehill/iseed": "^3.0",
         "phayes/geophp": "^1.2",
+        "web3p/ethereum-tx": "^0.4.3",
         "web3p/web3.php": "dev-master"
     },
     "require-dev": {
