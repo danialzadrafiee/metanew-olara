@@ -54,19 +54,15 @@ class OfferController extends Controller
         if (!$user) {
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
-
         try {
             DB::beginTransaction();
-
             $offer = new Offer([
                 'land_id' => $validatedData['land_id'],
                 'user_id' => $user->id,
                 'price' => $validatedData['price'],
             ]);
             $offer->save();
-
             DB::commit();
-
             return response()->json([
                 'message' => 'Offer submitted successfully',
                 'offer' => [

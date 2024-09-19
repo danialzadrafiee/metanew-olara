@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('land_id');
             $table->unsignedBigInteger('user_id');
             $table->double('price');
-            $table->string('price_currency')->default('bnb');
+            $table->string('price_asset_type')->default('bnb');
             $table->boolean('is_accepted')->default(false);
             $table->timestamps();
         });

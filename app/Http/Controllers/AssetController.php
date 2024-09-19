@@ -51,7 +51,7 @@ class AssetController extends Controller
             $user = User::findOrFail($request->user_id);
             
             if (!$user->unlockAsset($request->type, $request->amount)) {
-                return response()->json(['message' => 'Invalid unlock amount'], 400);
+            return response()->json(['message' => 'Invalid unlock amount'], 400);
             }
 
             return response()->json($user->getAssetAttribute($request->type));

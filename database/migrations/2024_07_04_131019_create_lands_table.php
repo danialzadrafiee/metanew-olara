@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('image')->nullable();
             $table->string('type')->nullable()->default('normal');
             $table->string('building_name')->nullable();
+            $table->string('nft_transaction_hash')->nullable();
             $table->integer('transfer_times')->nullable()->default(0);
             $table->integer('land_collection_id')->nullable()->default(0);
             $table->boolean('is_in_scratch')->default(false);

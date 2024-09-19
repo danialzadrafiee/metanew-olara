@@ -22,6 +22,7 @@ use App\Http\Controllers\GameEconomySettingsController;
 use App\Http\Controllers\LandTransferController;
 use App\Http\Controllers\MarketLandController;
 use App\Http\Controllers\MetaSpotController;
+use App\Http\Controllers\NftController;
 use App\Http\Controllers\ScratchBoxController;
 use App\Http\Controllers\SpotController;
 use App\Http\Controllers\SpotWithdrawController;
@@ -173,4 +174,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('spot/withdraw_bnb', [SpotWithdrawController::class, 'withdrawBnb']);
     Route::post('spot/withdraw_meta', [SpotWithdrawController::class, 'withdrawMeta']);
 });
-Route::get('test', [TestController::class, 'sendMetaToken']);
+Route::get('test', [TestController::class, 'getNftContractTransactions']);

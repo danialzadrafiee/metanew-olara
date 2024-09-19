@@ -84,7 +84,7 @@ class Offer extends Model
             // Cancel all other offers for this land
             $cancelledOffers = $land->offers()->where('id', '!=', $this->id)->get();
             foreach ($cancelledOffers as $otherOffer) {
-                $otherOffer->user->unlockAsset('bnb', $otherOffer->price);
+                $otherOffer->user->unlockAsset('bnb', $otheroffer->price);
                 $otherOffer->delete();
             }
 

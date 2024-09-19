@@ -80,6 +80,51 @@ class SpotWithdrawController extends Controller
         ]);
     }
 
+    private function sendBnbTransaction($toAddress, $amount)
+    {
+        $eth = $this->web3->eth;
+        $value = Utils::toWei(strval($amount), 'ether');
+
+        $transactionParams = [
+            'from' => $this->fromAddress,
+            'to' => $toAddress,
+            'gas' => '0x' . dechex(21000),
+            'value' => '0x' . $value->toHex(true),
+            'chainId' => 1337,
+            'data' => ''
+        ];
+
+        // Get nonce
+        $eth->getTransactionCount($this->fromAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
+            if ($err !== null) {
+                throw new \Exception('Error getting nonce: ' . $err->getMessage());
+            }
+            $transactionParams['nonce'] = '0x' . $nonce->toHex(true);
+        });
+
+        // Get gas price
+        $eth->gasPrice(function ($err, $gasPrice) use (&$transactionParams) {
+            if ($err !== null) {
+                throw new \Exception('Error getting gas price: ' . $err->getMessage());
+            }
+            $transactionParams['gasPrice'] = '0x' . $gasPrice->toHex(true);
+        });
+
+        $transaction = new Transaction($transactionParams);
+        $signedTransaction = '0x' . $transaction->sign(trim($this->privateKey, '0x'));
+
+        $txHash = null;
+        $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {
+            if ($err !== null) {
+                throw new \Exception('Error sending transaction: ' . $err->getMessage());
+            }
+            $txHash = $hash;
+        });
+
+        return $txHash;
+    }
+
+
     public function withdrawMeta(Request $request)
     {
         // Validate the request
@@ -131,50 +176,6 @@ class SpotWithdrawController extends Controller
             'message' => 'META withdrawal successful',
             'transaction_hash' => $txHash
         ]);
-    }
-
-    private function sendBnbTransaction($toAddress, $amount)
-    {
-        $eth = $this->web3->eth;
-        $value = Utils::toWei(strval($amount), 'ether');
-
-        $transactionParams = [
-            'from' => $this->fromAddress,
-            'to' => $toAddress,
-            'gas' => '0x' . dechex(21000),
-            'value' => '0x' . $value->toHex(true),
-            'chainId' => 1337,
-            'data' => ''
-        ];
-
-        // Get nonce
-        $eth->getTransactionCount($this->fromAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
-            if ($err !== null) {
-                throw new \Exception('Error getting nonce: ' . $err->getMessage());
-            }
-            $transactionParams['nonce'] = '0x' . $nonce->toHex(true);
-        });
-
-        // Get gas price
-        $eth->gasPrice(function ($err, $gasPrice) use (&$transactionParams) {
-            if ($err !== null) {
-                throw new \Exception('Error getting gas price: ' . $err->getMessage());
-            }
-            $transactionParams['gasPrice'] = '0x' . $gasPrice->toHex(true);
-        });
-
-        $transaction = new Transaction($transactionParams);
-        $signedTransaction = '0x' . $transaction->sign(trim($this->privateKey, '0x'));
-
-        $txHash = null;
-        $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {
-            if ($err !== null) {
-                throw new \Exception('Error sending transaction: ' . $err->getMessage());
-            }
-            $txHash = $hash;
-        });
-
-        return $txHash;
     }
 
     private function sendMetaTokenTransaction($toAddress, $amount)

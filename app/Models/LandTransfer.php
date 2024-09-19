@@ -24,6 +24,38 @@ class LandTransfer extends Model
         return $this->belongsTo(User::class, 'buyer_user_id');
     }
 
+
+    private function rewardCPForTransfer(User $seller, User $buyer)
+    {
+        $cpReward = GameEconomySettings::getValue('land_transfer.cp_reward');
+        $seller->addAsset('cp', $cpReward);
+        $buyer->addAsset('cp', $cpReward);
+    }
+
+    private function distributeAssets(array $shares)
+    {
+        $seller = User::findOrFail($shares['seller_id']);
+        $bank = User::findOrFail(1);
+        $foundation = User::findOrFail(2);
+
+        $seller->addAsset($this->asset_type, $shares['receiver']);
+        $bank->addAsset($this->asset_type, $shares['bank']);
+        $foundation->addAsset($this->asset_type, $shares['foundation']);
+
+        if ($shares['inviter_id']) {
+            $inviter = User::findOrFail($shares['inviter_id']);
+            $inviter->addAsset($this->asset_type, $shares['inviter']);
+        }
+    }
+
+    private function updateLandOwnership(Land $land, int $newOwnerId)
+    {
+        $land->update([
+            'owner_id' => $newOwnerId,
+            'fixed_price' => 0,
+        ]);
+    }
+
     public static function createTransfer(Land $land, User $seller, User $buyer, string $transferType, string $assetType, float $assetAmount)
     {
         return DB::transaction(function () use ($land, $seller, $buyer, $transferType, $assetType, $assetAmount) {
@@ -95,34 +127,4 @@ class LandTransfer extends Model
         return $result;
     }
 
-    private function rewardCPForTransfer(User $seller, User $buyer)
-    {
-        $cpReward = GameEconomySettings::getValue('land_transfer.cp_reward');
-        $seller->addAsset('cp', $cpReward);
-        $buyer->addAsset('cp', $cpReward);
-    }
-
-    private function distributeAssets(array $shares)
-    {
-        $seller = User::findOrFail($shares['seller_id']);
-        $bank = User::findOrFail(1);
-        $foundation = User::findOrFail(2);
-
-        $seller->addAsset($this->asset_type, $shares['receiver']);
-        $bank->addAsset($this->asset_type, $shares['bank']);
-        $foundation->addAsset($this->asset_type, $shares['foundation']);
-
-        if ($shares['inviter_id']) {
-            $inviter = User::findOrFail($shares['inviter_id']);
-            $inviter->addAsset($this->asset_type, $shares['inviter']);
-        }
-    }
-
-    private function updateLandOwnership(Land $land, int $newOwnerId)
-    {
-        $land->update([
-            'owner_id' => $newOwnerId,
-            'fixed_price' => 0,
-        ]);
-    }
 }
