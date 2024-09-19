@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\DB;
 class LandTransfer extends Model
 {
 
-
     public function land()
     {
         return $this->belongsTo(Land::class);
@@ -24,44 +23,11 @@ class LandTransfer extends Model
         return $this->belongsTo(User::class, 'buyer_user_id');
     }
 
-
-    private function rewardCPForTransfer(User $seller, User $buyer)
+    public static function createTransfer(Land $land, User $seller, User $buyer, string $transferType, string $assetType, float $assetAmount, ?Offer $offer = null)
     {
-        $cpReward = GameEconomySettings::getValue('land_transfer.cp_reward');
-        $seller->addAsset('cp', $cpReward);
-        $buyer->addAsset('cp', $cpReward);
-    }
-
-    private function distributeAssets(array $shares)
-    {
-        $seller = User::findOrFail($shares['seller_id']);
-        $bank = User::findOrFail(1);
-        $foundation = User::findOrFail(2);
-
-        $seller->addAsset($this->asset_type, $shares['receiver']);
-        $bank->addAsset($this->asset_type, $shares['bank']);
-        $foundation->addAsset($this->asset_type, $shares['foundation']);
-
-        if ($shares['inviter_id']) {
-            $inviter = User::findOrFail($shares['inviter_id']);
-            $inviter->addAsset($this->asset_type, $shares['inviter']);
-        }
-    }
-
-    private function updateLandOwnership(Land $land, int $newOwnerId)
-    {
-        $land->update([
-            'owner_id' => $newOwnerId,
-            'fixed_price' => 0,
-        ]);
-    }
-
-    public static function createTransfer(Land $land, User $seller, User $buyer, string $transferType, string $assetType, float $assetAmount)
-    {
-        return DB::transaction(function () use ($land, $seller, $buyer, $transferType, $assetType, $assetAmount) {
+        return DB::transaction(function () use ($land, $seller, $buyer, $transferType, $assetType, $assetAmount, $offer) {
             $land->increment('transfer_times');
-            $transferTimes = $land->transfer_times;
-            $shares = self::calculateShares($assetAmount, $seller, $transferTimes);
+            $shares = self::calculateShares($assetAmount, $seller, $land->transfer_times);
 
             $transfer = self::create([
                 'land_id' => $land->id,
@@ -70,50 +36,78 @@ class LandTransfer extends Model
                 'transfer_type' => $transferType,
                 'asset_type' => $assetType,
                 'asset_amount' => $assetAmount,
-                'land_transfer_times' => $transferTimes,
+                'land_transfer_times' => $land->transfer_times,
                 'receiver_share_amount' => $shares['receiver'],
                 'bank_share_amount' => $shares['bank'],
                 'foundation_share_amount' => $shares['foundation'],
                 'inviter_share_amount' => $shares['inviter'],
             ]);
 
-            $transfer->distributeAssets($shares);
-            $transfer->updateLandOwnership($land, $buyer->id);
-            $transfer->rewardCPForTransfer($seller, $buyer);
+            self::removeBuyerAssets($buyer, $transferType, $assetType, $assetAmount);
+            self::distributeShares($shares, $assetType, $seller);
+            self::updateLandOwnership($land, $buyer->id);
+            self::rewardCPForTransfer($seller, $buyer);
+
+            if ($offer) {
+                $land->offers()->delete();
+                $offer->delete();
+            }
 
             return $land->fresh()->load('owner');
         });
     }
 
+    private static function removeBuyerAssets(User $buyer, string $transferType, string $assetType, float $assetAmount)
+    {
+        $method = $transferType === 'offer' ? 'removeLockedAsset' : 'removeAsset';
+        if (!$buyer->$method($assetType, $assetAmount)) {
+            throw new \Exception("Failed to remove {$assetType} from buyer.");
+        }
+    }
+
+    private static function distributeShares($shares, $assetType, User $seller)
+    {
+        $seller->addAsset($assetType, $shares['receiver']);
+        User::where('role', 'bank')->first()->addAsset($assetType, $shares['bank']);
+        User::where('role', 'foundation')->first()->addAsset($assetType, $shares['foundation']);
+
+        if ($shares['inviter'] > 0 && $seller->inviter) {
+            $seller->inviter->addAsset($assetType, $shares['inviter']);
+        }
+    }
+
+    private static function updateLandOwnership(Land $land, int $newOwnerId)
+    {
+        $land->update(['owner_id' => $newOwnerId, 'fixed_price' => 0]);
+    }
+
+    private static function rewardCPForTransfer(User $seller, User $buyer)
+    {
+        $cpReward = GameEconomySettings::getValue('land_transfer.cp_reward');
+        $seller->addAsset('cp', $cpReward);
+        $buyer->addAsset('cp', $cpReward);
+    }
+
     private static function calculateShares(float $assetAmount, User $seller, int $transferTimes)
     {
-        \Log::debug("Calculate Shares - Asset Amount: " . $assetAmount . ", Transfer Times: " . $transferTimes);
-
-        if ($transferTimes === 1) {  // First transfer
+        if ($transferTimes === 1) {
             $foundationShare = GameEconomySettings::getValue('first_transfer.foundation_share') * $assetAmount;
-            \Log::debug("Foundation Share: " . $foundationShare);
-
-            if ($seller->inviter_id) {
-                $bankShare = GameEconomySettings::getValue('first_transfer.bank_share') * $assetAmount;
-                $inviterShare = GameEconomySettings::getValue('first_transfer.inviter_share') * $assetAmount;
-                \Log::debug("Bank Share: " . $bankShare . ", Inviter Share: " . $inviterShare);
-            } else {
-                $bankShare = GameEconomySettings::getValue('first_transfer.bank_share_no_inviter') * $assetAmount;
-                $inviterShare = 0;
-                \Log::debug("Bank Share (No Inviter): " . $bankShare);
-            }
-
-            $receiverShare = 0;  // The original owner (bank) doesn't receive a share
-        } else {  // Subsequent transfers
+            $bankShare = $seller->inviter_id
+                ? GameEconomySettings::getValue('first_transfer.bank_share') * $assetAmount
+                : GameEconomySettings::getValue('first_transfer.bank_share_no_inviter') * $assetAmount;
+            $inviterShare = $seller->inviter_id
+                ? GameEconomySettings::getValue('first_transfer.inviter_share') * $assetAmount
+                : 0;
+            $receiverShare = 0;
+        } else {
             $sellerShare = GameEconomySettings::getValue('subsequent_transfer.seller_share');
             $bankShare = GameEconomySettings::getValue('subsequent_transfer.bank_share') * $assetAmount;
             $foundationShare = GameEconomySettings::getValue('subsequent_transfer.foundation_share') * $assetAmount;
             $receiverShare = $sellerShare * $assetAmount;
-            $inviterShare = 0;  // No inviter share for subsequent transfers
-            \Log::debug("Seller Share: " . $sellerShare . ", Bank Share: " . $bankShare . ", Foundation Share: " . $foundationShare . ", Receiver Share: " . $receiverShare);
+            $inviterShare = 0;
         }
 
-        $result = [
+        return [
             'receiver' => $receiverShare,
             'bank' => $bankShare,
             'foundation' => $foundationShare,
@@ -121,10 +115,5 @@ class LandTransfer extends Model
             'seller_id' => $seller->id,
             'inviter_id' => $seller->inviter_id,
         ];
-
-        \Log::debug("Final Shares: " . json_encode($result));
-
-        return $result;
     }
-
 }
