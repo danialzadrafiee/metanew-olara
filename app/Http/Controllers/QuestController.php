@@ -57,65 +57,66 @@ class QuestController extends Controller
     public function complete(Request $request)
     {
         $quest_id = $request->input('quest_id');
-
-        Log::info('Starting quest completion for user ' . Auth::id() . ' and quest ' . $quest_id);
-
+        Log::info("Attempting to complete quest", ['quest_id' => $quest_id]);
+    
         return DB::transaction(function () use ($quest_id) {
             $user = Auth::user();
-            
+    
             if (!$user) {
                 Log::error('No authenticated user found');
                 return response()->json(['message' => 'User not authenticated'], 401);
             }
-
+    
             $quest = Quest::find($quest_id);
-
+    
             if (!$quest) {
-                Log::error('Quest not found: ' . $quest_id);
+                Log::error('Quest not found', ['quest_id' => $quest_id]);
                 return response()->json(['message' => 'Quest not found'], 404);
             }
-
-            Log::info('Checking if quest is already completed');
-            $completed = $user->quests()->where('quest_id', $quest_id)->wherePivot('completed_at', '!=', null)->exists();
-            
-            if ($completed) {
-                Log::info('Quest already completed');
+    
+            if ($user->quests()->where('quest_id', $quest_id)->wherePivot('completed_at', '!=', null)->exists()) {
                 return response()->json(['message' => 'Quest already completed'], 400);
             }
-
-            // Check and deduct costs
-            if ($quest->costs) {
-                Log::info('Checking and deducting costs');
-                foreach ($quest->costs as $cost) {
-                    $deducted = $user->updateAsset($cost['type'], -$cost['amount']);
-                    if (!$deducted) {
-                        Log::error('Failed to deduct cost from user');
+    
+            // Decode JSON data
+            $costs = json_decode($quest->costs, true);
+            $rewards = json_decode($quest->rewards, true);
+    
+            // Deduct costs
+            if ($costs) {
+                foreach ($costs as $cost) {
+                    if (!$user->removeAsset($cost['type'], $cost['amount'])) {
+                        Log::error('Insufficient resources to complete quest', [
+                            'user_id' => $user->id,
+                            'cost_type' => $cost['type'],
+                            'cost_amount' => $cost['amount']
+                        ]);
                         return response()->json(['message' => 'Insufficient resources to complete quest'], 400);
                     }
                 }
             }
-
-            Log::info('Attaching quest to user');
-            $user->quests()->attach($quest_id, ['completed_at' => now()]);
-
-            // Award rewards
-            if ($quest->rewards) {
-                Log::info('Processing rewards');
-                foreach ($quest->rewards as $reward) {
-                    Log::info('Adding reward: ' . json_encode($reward));
-                    $rewardAdded = $user->updateAsset($reward['type'], $reward['amount']);
-
-                    if (!$rewardAdded) {
-                        Log::error('Failed to add reward to user');
+    
+            // Add rewards
+            if ($rewards) {
+                foreach ($rewards as $reward) {
+                    if (!$user->addAsset($reward['type'], $reward['amount'])) {
+                        Log::error('Failed to add reward to user', [
+                            'user_id' => $user->id,
+                            'reward_type' => $reward['type'],
+                            'reward_amount' => $reward['amount']
+                        ]);
                         throw new \Exception('Failed to add reward to user');
                     }
                 }
             }
-
-            Log::info('Quest completed successfully');
+    
+            $user->quests()->attach($quest_id, ['completed_at' => now()]);
+            Log::info("Quest completed successfully", ['user_id' => $user->id, 'quest_id' => $quest_id]);
+    
             return response()->json(['message' => 'Quest completed and rewards added'], 200);
         });
     }
+
 
     public function userQuests(Request $request)
     {

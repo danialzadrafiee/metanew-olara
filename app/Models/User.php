@@ -21,6 +21,12 @@ class User extends Authenticatable
 
     protected $appends = ['formatted_assets'];
 
+
+    public function setAddressAttribute($value)
+    {
+        $this->attributes['address'] = strtolower($value);
+    }
+
     public function getFormattedAssetsAttribute()
     {
         return $this->assets->pluck('formatted', 'type')->toArray();

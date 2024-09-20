@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('auction_bids', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('auction_id');
-            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('user_id'); 
+            $table->enum('status', ['active', 'canceled', 'accepted'])->default('active');
             $table->double('amount');
             $table->timestamps();
         });

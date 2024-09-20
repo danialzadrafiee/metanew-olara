@@ -28,30 +28,17 @@ trait HasAssets
 
     public function lockAsset(string $type, int $amount): bool
     {
-        Log::debug("Attempting to lock asset. User ID: {$this->id}, Type: {$type}, Amount: {$amount}");
 
         return DB::transaction(function () use ($type, $amount) {
             $asset = $this->assets()->where('type', $type)->lockForUpdate()->first();
-
             if (!$asset) {
-                Log::debug("Asset not found for user {$this->id}, type: {$type}. Attempting to create.");
                 $asset = $this->assets()->create(['type' => $type, 'amount' => 0, 'locked_amount' => 0]);
             }
-
             if ($asset->amount - $asset->locked_amount < $amount) {
-                Log::debug("Insufficient funds. User {$this->id}, Available: " . ($asset->amount - $asset->locked_amount) . ", Requested: {$amount}");
                 return false;
             }
-
             $asset->locked_amount += $amount;
             $result = $asset->save();
-
-            if ($result) {
-                Log::debug("Successfully locked {$amount} of {$type} for user {$this->id}. New locked amount: {$asset->locked_amount}");
-            } else {
-                Log::debug("Failed to lock {$amount} of {$type} for user {$this->id}");
-            }
-
             return $result;
         });
     }
@@ -72,7 +59,6 @@ trait HasAssets
 
     public function addAsset(string $type, float $amount): bool
     {
-        Log::debug("Adding asset - User: {$this->id}, Type: {$type}, Amount: {$amount}");
 
         return DB::transaction(function () use ($type, $amount) {
             $asset = $this->assets()->firstOrCreate(
@@ -83,28 +69,23 @@ trait HasAssets
             $asset->amount += $amount;
             $result = $asset->save();
 
-            Log::debug("Asset added - User: {$this->id}, Type: {$type}, Old Amount: {$oldAmount}, New Amount: {$asset->amount}, Success: " . ($result ? 'true' : 'false'));
-
             return $result;
         });
     }
 
     public function removeAsset(string $type, float $amount): bool
     {
-        Log::debug("Attempting to remove asset - User: {$this->id}, Type: {$type}, Amount: {$amount}");
 
         return DB::transaction(function () use ($type, $amount) {
             $asset = $this->assets()->where('type', $type)->lockForUpdate()->first();
 
             if (!$asset) {
-                Log::debug("Asset not found - User: {$this->id}, Type: {$type}");
                 return false;
             }
 
             $availableAmount = $asset->amount - $asset->locked_amount;
 
             if ($availableAmount < $amount) {
-                Log::debug("Insufficient funds - User: {$this->id}, Type: {$type}, Available: {$availableAmount}, Requested: {$amount}");
                 return false;
             }
 
@@ -112,7 +93,6 @@ trait HasAssets
             $asset->amount -= $amount;
             $result = $asset->save();
 
-            Log::debug("Asset removal attempt - User: {$this->id}, Type: {$type}, Old Amount: {$oldAmount}, New Amount: {$asset->amount}, Success: " . ($result ? 'true' : 'false'));
 
             return $result;
         });

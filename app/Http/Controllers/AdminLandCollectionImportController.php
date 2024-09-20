@@ -14,7 +14,6 @@ class AdminLandCollectionImportController extends Controller
 
     public function import(Request $request)
     {
-        Log::info('Import process started', ['file_name' => $request->file_name]);
         $request->validate([
             'file' => 'required|file',
             'file_name' => 'required|string|max:255',
@@ -54,13 +53,7 @@ class AdminLandCollectionImportController extends Controller
                 'type' => $request->type,
             ]);
 
-            Log::info('Land collection created', [
-                'collection_id' => $landCollection->id,
-                'file_name' => $landCollection->file_name,
-                'collection_name' => $landCollection->collection_name,
-                'type' => $landCollection->type
-            ]);
-
+     
             $createdLands = 0;
             $totalFeatures = count($data->features);
 
@@ -68,21 +61,12 @@ class AdminLandCollectionImportController extends Controller
                 $this->processFeature($feature, $landCollection->id);
                 $createdLands++;
 
-                if ($index % 100 == 0 || $index == $totalFeatures - 1) {
-                    Log::info('Processing features', [
-                        'progress' => $index + 1,
-                        'total' => $totalFeatures,
-                        'percentage' => round(($index + 1) / $totalFeatures * 100, 2) . '%'
-                    ]);
-                }
+             
             }
 
             DB::commit();
 
-            Log::info('Import completed', [
-                'collection_id' => $landCollection->id,
-                'lands_created' => $createdLands,
-            ]);
+       
 
             return response()->json([
                 'message' => 'Import completed',
@@ -117,14 +101,7 @@ class AdminLandCollectionImportController extends Controller
         // Refresh to get the calculated values
         $land->refresh();
 
-        Log::info('Land processed', [
-            'land_id' => $land->id,
-            'collection_id' => $landCollectionId,
-            'size' => $land->size,
-            'center_lat' => $land->center_lat,
-            'center_long' => $land->center_long,
-            'coordinates' => $land->coordinates
-        ]);
+     
 
         return $land;
     }

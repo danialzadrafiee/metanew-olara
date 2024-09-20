@@ -157,18 +157,5 @@ class OfferController extends Controller
         return response()->json($offers);
     }
 
-    public function acceptOffer($offerId): JsonResponse
-    {
-        try {
-            $offer = Offer::findOrFail($offerId);
-            $updatedLand = $offer->accept();
-
-            return response()->json([
-                'message' => 'Offer accepted successfully.',
-                'land' => $updatedLand,
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
+ 
 }

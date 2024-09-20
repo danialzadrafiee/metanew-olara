@@ -14,7 +14,6 @@ class ScratchBoxController extends Controller
     public function index()
     {
         $user = Auth::user();
-        Log::info("User {$user->id} accessed scratch box index.");
 
         $availableScratchBoxes = ScratchBox::whereIn('status', ['available', 'sold'])->get();
         $ownedScratchBoxes = ScratchBox::whereIn('status', ['sold', 'opened'])
@@ -23,7 +22,6 @@ class ScratchBoxController extends Controller
             })
             ->get();
 
-        Log::info("Scratch box index retrieved for user {$user->id}. Available: {$availableScratchBoxes->count()}, Owned: {$ownedScratchBoxes->count()}");
 
         return response()->json([
             'available' => $availableScratchBoxes,
@@ -34,7 +32,6 @@ class ScratchBoxController extends Controller
     public function buy($id)
     {
         $user = Auth::user();
-        Log::info("User {$user->id} attempting to buy scratch box {$id}.");
 
         $scratchBox = ScratchBox::findOrFail($id);
 
@@ -62,11 +59,9 @@ class ScratchBoxController extends Controller
             $scratchBoxAsset = $user->assets()->firstOrCreate(['type' => 'scratch_box'], ['amount' => 0, 'locked_amount' => 0]);
             $scratchBoxAsset->increment('amount');
             DB::commit();
-            Log::info("User {$user->id} successfully purchased scratch box {$id} for {$scratchBox->price} BNB.");
             return response()->json(['message' => 'Scratch box purchased successfully.', 'scratch_box' => $scratchBox]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Failed to purchase scratch box {$id} for user {$user->id}: " . $e->getMessage());
             return response()->json(['error' => 'Failed to purchase scratch box: ' . $e->getMessage()], 500);
         }
     }
@@ -76,12 +71,10 @@ class ScratchBoxController extends Controller
     public function open($id)
     {
         $user = Auth::user();
-        Log::info("User {$user->id} attempting to open scratch box {$id}.");
 
         $scratchBox = ScratchBox::findOrFail($id);
 
         if ($scratchBox->status !== 'sold') {
-            Log::warning("User {$user->id} attempted to open unavailable scratch box {$id}.");
             return response()->json(['error' => 'This scratch box is not available for opening.'], 400);
         }
 
@@ -95,7 +88,6 @@ class ScratchBoxController extends Controller
             $scratchBoxAsset->amount -= 1;
             $scratchBoxAsset->save();
             DB::commit();
-            Log::info("User {$user->id} successfully opened scratch box {$id}. Lands received: " . count($lands));
             return response()->json([
                 'message' => 'Scratch box opened successfully.',
                 'lands' => $lands
@@ -110,24 +102,20 @@ class ScratchBoxController extends Controller
     public function available()
     {
         $user = Auth::user();
-        Log::info("User {$user->id} requesting available scratch boxes.");
 
         $availableScratchBoxes = ScratchBox::whereIn('status', ['available', 'sold'])->get();
 
-        Log::info("Retrieved {$availableScratchBoxes->count()} available scratch boxes for user {$user->id}.");
         return response()->json($availableScratchBoxes);
     }
 
     public function owned()
     {
         $user = Auth::user();
-        Log::info("User {$user->id} requesting owned scratch boxes.");
 
         $ownedScratchBoxes = ScratchBox::where('user_id', $user->id)
             ->whereIn('status', ['sold', 'opened'])
             ->get();
 
-        Log::info("Retrieved {$ownedScratchBoxes->count()} owned scratch boxes for user {$user->id}.");
         return response()->json($ownedScratchBoxes);
     }
 }

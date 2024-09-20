@@ -76,7 +76,6 @@ class SpotController extends Controller
         }
 
         if ($result) {
-            Log::info($logMessage);
         } else {
             Log::error("Failed to update BNB balance: {$logMessage}");
         }
@@ -89,7 +88,6 @@ class SpotController extends Controller
         $toAddress = strtolower($transaction->to_address);
 
         // Log the raw amount
-        Log::info("Raw META transaction amount: " . $transaction->amount);
 
         $amount = $transaction->amount;
 
@@ -115,7 +113,6 @@ class SpotController extends Controller
         }
 
         if ($result) {
-            Log::info($logMessage);
         } else {
             Log::error("Failed to update META balance: {$logMessage}");
         }

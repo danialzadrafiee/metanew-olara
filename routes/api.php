@@ -105,7 +105,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('asset-listings/{listing}/buy', [AssetListingController::class, 'buy']);
 
     Route::post('set-land-building-id', [BuildingController::class, 'setLandBuildingid']);
-
 });
 
 // Admin Land
@@ -145,10 +144,7 @@ Route::delete('admin/scratch-boxes/{id}', [AdminScratchBoxController::class, 'de
 Route::get('admin/scratch-boxes/all-available-land-ids', [AdminScratchBoxController::class, 'getAllAvailableLandIds']);
 Route::get('admin/scratch-boxes/available-lands', [AdminScratchBoxController::class, 'getAvailableLands']);
 
-// Cron Jobs
-// Route::get('cron/auctions-process', [CronController::class, 'processAllAuctions']);
-// Route::get('cron/force-process-auction', [CronController::class, 'forceAllProcessAllAuctions']);
-Route::get('fpa', [CronController::class, 'forceAllProcessAllAuctions']);
+
 
 
 Route::get('/cities', [CityController::class, 'index']);
@@ -167,11 +163,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('offers/accept/{offerId}', [LandTransferController::class, 'acceptOffer']);
     Route::post('scratch-boxes/{id}/open', [LandTransferController::class, 'openScratchBox']);
 });
-Route::get('cron/auctions-process', [LandTransferController::class, 'processAllAuctions']);
 
 Route::get('spot/update_balances', [SpotController::class, 'updateBalances']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('spot/withdraw_bnb', [SpotWithdrawController::class, 'withdrawBnb']);
     Route::post('spot/withdraw_meta', [SpotWithdrawController::class, 'withdrawMeta']);
 });
-Route::get('test', [TestController::class, 'getNftContractTransactions']);
+Route::get('test/{landId}', [LandTransferController::class, 'executeSingleAuction']);
+
+

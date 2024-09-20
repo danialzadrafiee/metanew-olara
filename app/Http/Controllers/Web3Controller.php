@@ -37,7 +37,6 @@ class Web3Controller extends Controller
             $newMetaTransactions = $this->fetchNewMetaTransactions($latestBlock);
             $this->saveNewMetaTransactions($newMetaTransactions);
 
-            Log::info('Finished checking new transactions');
         } catch (\Exception $e) {
             Log::error('Error in checkNewTransactions: ' . $e->getMessage());
         }
@@ -229,7 +228,6 @@ class Web3Controller extends Controller
 
     private function weiToEth($wei)
     {
-        Log::info("weiToEth input: " . var_export($wei, true));
 
         if (is_string($wei) && substr($wei, 0, 2) === '0x') {
             $wei = gmp_strval(gmp_init(substr($wei, 2), 16));
@@ -244,14 +242,12 @@ class Web3Controller extends Controller
 
         $result = bcdiv($wei, bcpow('10', '18'), 18);
 
-        Log::info("weiToEth result: " . $result);
 
         return $result;
     }
 
     private function weiToMeta($wei)
     {
-        Log::info("weiToMeta input: " . var_export($wei, true));
 
         if (is_string($wei) && substr($wei, 0, 2) === '0x') {
             $wei = gmp_strval(gmp_init(substr($wei, 2), 16));
@@ -266,7 +262,6 @@ class Web3Controller extends Controller
 
         $result = bcdiv($wei, bcpow('10', '8'), 8);
 
-        Log::info("weiToMeta result: " . $result);
 
         return $result;
     }

@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Models\Land;
 use App\Models\User;
+use Log;
 
 trait LandNFTTrait
 {
@@ -12,8 +13,13 @@ trait LandNFTTrait
         $tokenId = $land->id;
         $approvedAddress = $this->nftController->getApproved($tokenId);
         $bankAddress = "0x24015B83f9B2CD8BF831101e79b3BFB9aE20afa1";
-        return strtolower($approvedAddress) === strtolower($bankAddress);
+        $owner = $land->owner;
+        $isOwnerBank = $owner->role === 'bank';
+        $isApprovedByBank = $approvedAddress !== null && strtolower($approvedAddress) === strtolower($bankAddress);
+        $result = $isOwnerBank || $isApprovedByBank;
+        return $result;
     }
+
 
     public function handleLandNFT(Land $land, User $buyer)
     {

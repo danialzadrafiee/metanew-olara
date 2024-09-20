@@ -33,7 +33,7 @@ class Land extends Model
         'fixed_price' => 'double',
     ];
 
-
+ 
     public function coordinates(): Attribute
     {
         return Attribute::make(
@@ -181,7 +181,6 @@ class Land extends Model
     {
         return $this->hasOne(Auction::class)->active()->latest();
     }
-
 
     public function scratchBoxes()
     {

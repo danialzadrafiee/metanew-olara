@@ -35,7 +35,6 @@ class AdminScratchBoxController extends Controller
 
             DB::commit();
 
-            Log::info('Scratch box created successfully', ['id' => $scratchBox->id]);
             return response()->json(['message' => 'Scratch box created successfully', 'scratch_box' => $scratchBox]);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -56,7 +55,6 @@ class AdminScratchBoxController extends Controller
                 $scratchBox->delete();
             });
 
-            Log::info('Scratch box deleted successfully', ['id' => $id]);
             return response()->json(['message' => 'Scratch box deleted successfully']);
         } catch (\Exception $e) {
             Log::error('Failed to delete scratch box: ' . $e->getMessage(), ['id' => $id]);

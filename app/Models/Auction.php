@@ -67,7 +67,6 @@ class Auction extends Model
             }
 
             DB::commit();
-            Log::info("Auction {$this->id} processed successfully. Status: " . ($highestBid ? "Sold" : "No bids"));
             return true;
         } catch (Exception $e) {
             DB::rollBack();
@@ -127,7 +126,6 @@ class Auction extends Model
             $canceledAuction->save();
 
             DB::commit();
-            Log::info("Canceled auction {$canceledAuction->id} processed successfully.");
             return true;
         } catch (Exception $e) {
             DB::rollBack();

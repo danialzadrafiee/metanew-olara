@@ -73,14 +73,11 @@ class AuthController extends Controller
     private function login(User $user)
     {
         try {
-            Log::info('Login attempt', ['user_id' => $user->id]);
             $user->tokens()->delete();
             $newToken = $user->createToken('auth_token', ['*'], $this->getTokenExpiration());
-            Log::info('New token created', ['token_id' => $newToken->accessToken->id]);
 
             return $this->respondWithToken($newToken->plainTextToken, $user);
         } catch (\Exception $e) {
-            Log::error('Token creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Token creation failed: ' . $e->getMessage()], 500);
         }
     }
@@ -114,12 +111,6 @@ class AuthController extends Controller
             $recoveredAddress = Accounts::signedMessageToAddress($request->message, $request->signature);
             $isVerified = strcasecmp($recoveredAddress, $request->address) === 0;
 
-            Log::info('Signature verification attempt', [
-                'message' => $request->message,
-                'provided_address' => $request->address,
-                'recovered_address' => $recoveredAddress,
-                'is_verified' => $isVerified
-            ]);
 
             return $isVerified;
         } catch (\Exception $e) {
