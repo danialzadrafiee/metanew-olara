@@ -174,6 +174,8 @@ Route::get('test/{landId}', [LandTransferController::class, 'executeSingleAuctio
 
 Route::get('/env-check', function () {
     return response()->json([
+        'ENV' => $_ENV,
+        'SERVER' => $_SERVER,
         'APP_NAME' => env('APP_NAME'),
         'LAND_MINTER_CONTRACT_ADDRESS' => env('LAND_MINTER_CONTRACT_ADDRESS'),
         'BANK_PVK' => env('BANK_PVK'),
