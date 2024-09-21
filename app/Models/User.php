@@ -67,28 +67,7 @@ class User extends Authenticatable
         });
     }
 
-    public static function getBank()
-    {
-        $bank = self::firstOrCreate(
-            ['id' => 1],
-            [
-                'address' => '0x0000000000000000000000000000000000000000',
-                'nickname' => 'Bank',
-                'avatar_url' => null,
-                'coordinates' => null,
-                'current_mission' => 0,
-                'referral_code' => 'BANK',
-            ]
-        );
 
-        $assetTypes = ['cp', 'cp_locked', 'meta', 'meta_locked', 'iron', 'wood', 'sand', 'gold', 'ticket', 'giftbox', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box'];
-
-        foreach ($assetTypes as $type) {
-            $bank->assets()->firstOrCreate(['type' => $type], ['amount' => 0]);
-        }
-
-        return $bank;
-    }
 
     public function ownedLands(): HasMany
     {

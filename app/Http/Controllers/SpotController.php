@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Models\Web3BnbTransaction;
 use App\Models\Web3MetaTransaction;
-use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
 class SpotController extends Controller
 {
-    private $depositAddress = '0x24015B83f9B2CD8BF831101e79b3BFB9aE20afa1';
+    private $bankAddress;
+
+    public function __construct()
+    {
+        $this->bankAddress = env('BANK_ADDRESS');
+    }
 
     public function processNewTransactions()
     {
@@ -50,71 +55,59 @@ class SpotController extends Controller
 
     private function processUserBnbAsset($transaction)
     {
-        $depositAddress = strtolower($this->depositAddress);
+        $bankAddress = strtolower($this->bankAddress);
         $fromAddress = strtolower($transaction->from_address);
         $toAddress = strtolower($transaction->to_address);
 
-        if ($toAddress === $depositAddress) {
+        if ($toAddress === $bankAddress) {
             $user = User::whereRaw('LOWER(address) = ?', [$fromAddress])->first();
             if (!$user) {
-                Log::warning("BNB deposit received from unknown address: {$fromAddress}");
                 return;
             }
             $result = $user->addAsset('bnb', $transaction->amount);
             $logMessage = "BNB Deposit: Updated BNB balance for user {$user->id}: +{$transaction->amount}";
-        } elseif ($fromAddress === $depositAddress) {
+        } elseif ($fromAddress === $bankAddress) {
             $user = User::whereRaw('LOWER(address) = ?', [$toAddress])->first();
             if (!$user) {
-                Log::warning("BNB withdrawal sent to unknown address: {$toAddress}");
                 return;
             }
             $result = $user->removeAsset('bnb', $transaction->amount);
             $logMessage = "BNB Withdrawal: Updated BNB balance for user {$user->id}: -{$transaction->amount}";
         } else {
-            Log::warning("BNB transaction does not involve deposit address: from {$fromAddress} to {$toAddress}");
             return;
         }
 
-        if ($result) {
-        } else {
-            Log::error("Failed to update BNB balance: {$logMessage}");
+        if (!$result) {
+            Log::error("Failed to update BNB balance", ['message' => $logMessage]);
         }
     }
 
     private function processUserMetaAsset($transaction)
     {
-        $depositAddress = strtolower($this->depositAddress);
+        $bankAddress = strtolower($this->bankAddress);
         $fromAddress = strtolower($transaction->from_address);
         $toAddress = strtolower($transaction->to_address);
 
-        // Log the raw amount
-
-        $amount = $transaction->amount;
-
-        if ($toAddress === $depositAddress) {
+        if ($toAddress === $bankAddress) {
             $user = User::whereRaw('LOWER(address) = ?', [$fromAddress])->first();
             if (!$user) {
-                Log::warning("META deposit received from unknown address: {$fromAddress}");
                 return;
             }
-            $result = $user->addAsset('meta', $amount);
-            $logMessage = "META Deposit: Updated META balance for user {$user->id}: +{$amount}";
-        } elseif ($fromAddress === $depositAddress) {
+            $result = $user->addAsset('meta', $transaction->amount);
+            $logMessage = "META Deposit: Updated META balance for user {$user->id}: +{$transaction->amount}";
+        } elseif ($fromAddress === $bankAddress) {
             $user = User::whereRaw('LOWER(address) = ?', [$toAddress])->first();
             if (!$user) {
-                Log::warning("META withdrawal sent to unknown address: {$toAddress}");
                 return;
             }
-            $result = $user->removeAsset('meta', $amount);
-            $logMessage = "META Withdrawal: Updated META balance for user {$user->id}: -{$amount}";
+            $result = $user->removeAsset('meta', $transaction->amount);
+            $logMessage = "META Withdrawal: Updated META balance for user {$user->id}: -{$transaction->amount}";
         } else {
-            Log::warning("META transaction does not involve deposit address: from {$fromAddress} to {$toAddress}");
             return;
         }
 
-        if ($result) {
-        } else {
-            Log::error("Failed to update META balance: {$logMessage}");
+        if (!$result) {
+            Log::error("Failed to update META balance", ['message' => $logMessage]);
         }
     }
 

@@ -11,15 +11,18 @@ use Web3p\EthereumTx\Transaction;
 class NftController extends Controller
 {
     private $web3;
-    private $fromAddress = '0x24015B83f9B2CD8BF831101e79b3BFB9aE20afa1';
-    private $privateKey = '0x6ede5877c85dfb5c94d78ab2271bfa8fe3782d6c548470f948b7b17b698809cd';
+    private $bankPrivateKey;
+    private $bankAddress;
     private $contract;
-    private $contractAddress = '0x3647475ba87ac9A788f8533751c02A09A51DA556';
+    private $contractAddress;
 
     public function __construct()
     {
-        $this->web3 = new Web3(new HttpProvider('http://127.0.0.1:8545'));
+        $this->web3 = new Web3(new HttpProvider(env('RPC_URL')));
         $this->contract = new Contract($this->web3->provider, NFTAbi::getNFTAbi());
+        $this->bankPrivateKey = env('BANK_PVK');
+        $this->bankAddress = env('BANK_ADDRESS');
+        $this->contractAddress = env('LAND_MINTER_CONTRACT_ADDRESS');
     }
 
     public function getTokenOwner($tokenId)
@@ -81,15 +84,15 @@ class NftController extends Controller
         $data = $this->contract->at($this->contractAddress)->getData('mint', $params['to'], $params['tokenId'], $params['uri']);
 
         $transactionParams = [
-            'from' => $this->fromAddress,
+            'from' => $this->bankAddress,
             'to' => $this->contractAddress,
             'gas' => '0x' . dechex(200000),
             'value' => '0x0',
             'data' => '0x' . $data,
-            'chainId' => 1337
+            'chainId' => env('CHAIN_ID'),
         ];
 
-        $eth->getTransactionCount($this->fromAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
+        $eth->getTransactionCount($this->bankAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
             if ($err !== null) {
                 throw new \Exception('Error getting nonce: ' . $err->getMessage());
             }
@@ -104,7 +107,7 @@ class NftController extends Controller
         });
 
         $transaction = new Transaction($transactionParams);
-        $signedTransaction = '0x' . $transaction->sign(trim($this->privateKey, '0x'));
+        $signedTransaction = '0x' . $transaction->sign(trim($this->bankPrivateKey, '0x'));
 
         $txHash = null;
         $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {
@@ -129,15 +132,15 @@ class NftController extends Controller
         $data = $this->contract->at($this->contractAddress)->getData('transferFrom', $params['from'], $params['to'], $params['tokenId']);
 
         $transactionParams = [
-            'from' => $this->fromAddress,
+            'from' => $this->bankAddress,
             'to' => $this->contractAddress,
             'gas' => '0x' . dechex(200000),
             'value' => '0x0',
             'data' => '0x' . $data,
-            'chainId' => 1337
+            'chainId' => env('CHAIN_ID'),
         ];
 
-        $eth->getTransactionCount($this->fromAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
+        $eth->getTransactionCount($this->bankAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
             if ($err !== null) {
                 throw new \Exception('Error getting nonce: ' . json_encode($err));
             }
@@ -152,7 +155,7 @@ class NftController extends Controller
         });
 
         $transaction = new Transaction($transactionParams);
-        $signedTransaction = '0x' . $transaction->sign(trim($this->privateKey, '0x'));
+        $signedTransaction = '0x' . $transaction->sign(trim($this->bankPrivateKey, '0x'));
 
         $txHash = null;
         $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {

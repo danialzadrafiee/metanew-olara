@@ -12,7 +12,7 @@ trait LandNFTTrait
     {
         $tokenId = $land->id;
         $approvedAddress = $this->nftController->getApproved($tokenId);
-        $bankAddress = "0x24015B83f9B2CD8BF831101e79b3BFB9aE20afa1";
+        $bankAddress = env('BANK_ADDRESS');
         $owner = $land->owner;
         $isOwnerBank = $owner->role === 'bank';
         $isApprovedByBank = $approvedAddress !== null && strtolower($approvedAddress) === strtolower($bankAddress);
@@ -26,8 +26,7 @@ trait LandNFTTrait
         $tokenId = $land->id;
         $currentOwner = $this->nftController->getTokenOwner($tokenId);
         $approvedAddress = $this->nftController->getApproved($tokenId);
-        $bankAddress = "0x24015B83f9B2CD8BF831101e79b3BFB9aE20afa1";
-
+        $bankAddress = env('BANK_ADDRESS');
         if ($currentOwner === null || $approvedAddress === null) {
             $txHash = $this->nftController->mintNFT($buyer->address, $tokenId, "https://ipfs.io/ipfs/bafybeibulyuw4qmptj3z4kujjh2w5677xx3eizwydz2yao3nnrt7fhsnlq/1000.json");
             return ['action' => 'minted', 'txHash' => $txHash];

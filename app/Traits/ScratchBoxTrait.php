@@ -13,7 +13,7 @@ trait ScratchBoxTrait
         try {
             $tokenId = $land->id;
             $currentOwner = $this->nftController->getTokenOwner($tokenId);
-            $bankAddress = "0x24015B83f9B2CD8BF831101e79b3BFB9aE20afa1";
+            $bankAddress = env('BANK_ADDRESS');
 
             if ($currentOwner !== null && strtolower($currentOwner) !== strtolower($bankAddress)) {
                 throw new \Exception("Land {$land->id} is not owned by the bank.");

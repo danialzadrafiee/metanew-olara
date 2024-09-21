@@ -2,178 +2,115 @@
 
 namespace App\Http\Controllers;
 
-use Web3\Web3;
-use Web3\Contract;
 use App\Models\Web3BnbTransaction;
 use App\Models\Web3MetaTransaction;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class Web3Controller extends Controller
 {
-    private $bnbDepositAddress = '0x24015B83f9B2CD8BF831101e79b3BFB9aE20afa1';
-    private $metaContractAddress = '0x523c2d041153D299602468684bfeC9a7e448eDB0';
-    private $web3;
-    private $metaContract;
+    private $bankAddress;
+    private $metaContractAddress;
+    private $etherscanApiKey;
+    private $etherscanApiUrl;
 
     public function __construct()
     {
-        $this->web3 = new Web3('http://127.0.0.1:8545');
-        $this->metaContract = new Contract($this->web3->provider, $this->getMetaAbi());
-        $this->metaContract->at($this->metaContractAddress);
+        $this->bankAddress = env('BANK_ADDRESS');
+        $this->metaContractAddress = env('META_CONTRACT_ADDRESS');
+        $this->etherscanApiKey = '63ZH2CVKCA66584VFTWYUBYEEJ32VPJWFJ';
+        $this->etherscanApiUrl = 'https://api-sepolia-optimism.etherscan.io/api';
     }
 
     public function checkNewTransactions()
     {
         try {
-            $latestBlock = $this->getLatestBlockNumber();
-            if ($latestBlock === null) {
-                Log::error('Failed to get latest block number');
-                return;
-            }
-
-            $newBnbTransactions = $this->fetchNewBnbTransactions($latestBlock);
+            $newBnbTransactions = $this->fetchNewBnbTransactions();
             $this->saveNewBnbTransactions($newBnbTransactions);
 
-            $newMetaTransactions = $this->fetchNewMetaTransactions($latestBlock);
+            $newMetaTransactions = $this->fetchNewMetaTransactions();
             $this->saveNewMetaTransactions($newMetaTransactions);
-
         } catch (\Exception $e) {
             Log::error('Error in checkNewTransactions: ' . $e->getMessage());
         }
     }
 
-    private function getLatestBlockNumber()
+    private function fetchNewBnbTransactions()
     {
-        $latestBlock = null;
-        $this->web3->eth->blockNumber(function ($err, $blockNumber) use (&$latestBlock) {
-            if ($err !== null) {
-                Log::error('Error getting latest block number: ' . $err->getMessage());
-            } else {
-                $latestBlock = hexdec($blockNumber);
-            }
-        });
-        return $latestBlock;
-    }
+        $response = Http::get($this->etherscanApiUrl, [
+            'module' => 'account',
+            'action' => 'txlist',
+            'address' => $this->bankAddress,
+            'startblock' => 0,
+            'endblock' => 99999999,
+            'sort' => 'desc',
+            'apikey' => $this->etherscanApiKey,
+        ]);
 
-    private function fetchNewBnbTransactions($latestBlock)
-    {
-        $transactions = [];
-        $blockNumber = $latestBlock;
-        $foundExistingTransaction = false;
-
-        while ($blockNumber > 0 && !$foundExistingTransaction) {
-            $blockTransactions = $this->getBnbTransactions($blockNumber);
-
-            foreach ($blockTransactions as $tx) {
-                if ($this->bnbTransactionExists($tx['tx_hash'])) {
-                    $foundExistingTransaction = true;
-                    break;
-                }
-                $transactions[] = $tx;
-            }
-
-            $blockNumber--;
+        if ($response->successful()) {
+            $transactions = $response->json()['result'];
+            return $this->formatBnbTransactions($transactions);
+        } else {
+            Log::error('Failed to fetch BNB transactions: ' . $response->body());
+            return [];
         }
-
-        return array_reverse($transactions);
     }
 
-    private function fetchNewMetaTransactions($latestBlock)
+    private function fetchNewMetaTransactions()
     {
-        $transactions = [];
-        $blockNumber = $latestBlock;
-        $foundExistingTransaction = false;
+        $response = Http::get($this->etherscanApiUrl, [
+            'module' => 'account',
+            'action' => 'tokentx',
+            'contractaddress' => $this->metaContractAddress,
+            'address' => $this->bankAddress,
+            'startblock' => 0,
+            'endblock' => 99999999,
+            'sort' => 'desc',
+            'apikey' => $this->etherscanApiKey,
+        ]);
 
-        while ($blockNumber > 0 && !$foundExistingTransaction) {
-            $blockTransactions = $this->getMetaTransactions($blockNumber);
-
-            foreach ($blockTransactions as $tx) {
-                if ($this->metaTransactionExists($tx['tx_hash'])) {
-                    $foundExistingTransaction = true;
-                    break;
-                }
-                $transactions[] = $tx;
-            }
-
-            $blockNumber--;
+        if ($response->successful()) {
+            $transactions = $response->json()['result'];
+            return $this->formatMetaTransactions($transactions);
+        } else {
+            Log::error('Failed to fetch META transactions: ' . $response->body());
+            return [];
         }
-
-        return array_reverse($transactions);
     }
 
-    private function getBnbTransactions($blockNumber)
+    private function formatBnbTransactions($transactions)
     {
-        $transactions = [];
-        $this->web3->eth->getBlockByNumber($blockNumber, true, function ($err, $block) use (&$transactions, $blockNumber) {
-            if ($err !== null) {
-                Log::error("Error getting block $blockNumber: " . $err->getMessage());
-            } elseif ($block === null) {
-                Log::warning("Block $blockNumber returned null");
-            } else {
-                if (!property_exists($block, 'transactions')) {
-                    Log::warning("Block $blockNumber does not have a transactions property");
-                } else {
-                    foreach ($block->transactions as $tx) {
-                        $toAddress = strtolower($tx->to);
-                        $fromAddress = strtolower($tx->from);
-                        $depositAddress = strtolower($this->bnbDepositAddress);
-
-                        if ($toAddress === $depositAddress || $fromAddress === $depositAddress) {
-                            $transactions[] = $this->formatBnbTransaction($tx, $block);
-                        }
-                    }
-                }
+        $formattedTransactions = [];
+        foreach ($transactions as $tx) {
+            if (!$this->bnbTransactionExists($tx['hash'])) {
+                $formattedTransactions[] = [
+                    'tx_hash' => $tx['hash'],
+                    'from_address' => $tx['from'],
+                    'to_address' => $tx['to'],
+                    'amount' => $this->weiToBNB($tx['value']),
+                    'block_number' => $tx['blockNumber'],
+                ];
             }
-        });
-        return $transactions;
+        }
+        return $formattedTransactions;
     }
 
-    private function getMetaTransactions($blockNumber)
+    private function formatMetaTransactions($transactions)
     {
-        $transactions = [];
-        $this->web3->eth->getBlockByNumber($blockNumber, true, function ($err, $block) use (&$transactions, $blockNumber) {
-            if ($err !== null) {
-                Log::error("Error getting block $blockNumber: " . $err->getMessage());
-            } elseif ($block === null) {
-                Log::warning("Block $blockNumber returned null");
-            } else {
-                if (!property_exists($block, 'transactions')) {
-                    Log::warning("Block $blockNumber does not have a transactions property");
-                } else {
-                    foreach ($block->transactions as $tx) {
-                        if (strtolower($tx->to) === strtolower($this->metaContractAddress)) {
-                            $decodedInput = $this->decodeMetaTransferInput($tx->input);
-                            if ($decodedInput) {
-                                $transactions[] = $this->formatMetaTransaction($tx, $block, $decodedInput);
-                            }
-                        }
-                    }
-                }
+        $formattedTransactions = [];
+        foreach ($transactions as $tx) {
+            if (!$this->metaTransactionExists($tx['hash'])) {
+                $formattedTransactions[] = [
+                    'tx_hash' => $tx['hash'],
+                    'from_address' => $tx['from'],
+                    'to_address' => $tx['to'],
+                    'amount' => $this->weiToMETA($tx['value']),
+                    'block_number' => $tx['blockNumber'],
+                ];
             }
-        });
-        return $transactions;
-    }
-
-    private function formatBnbTransaction($tx, $block)
-    {
-        return [
-            'tx_hash' => $tx->hash,
-            'from_address' => $tx->from,
-            'to_address' => $tx->to,
-            'amount' => $this->weiToEth($tx->value),
-            'block_number' => hexdec($block->number),
-        ];
-    }
-
-    private function formatMetaTransaction($tx, $block, $decodedInput)
-    {
-        return [
-            'tx_hash' => $tx->hash,
-            'from_address' => $tx->from,
-            'to_address' => $decodedInput['to'],
-            'amount' => $this->weiToMeta($decodedInput['value']),
-            'block_number' => hexdec($block->number),
-        ];
+        }
+        return $formattedTransactions;
     }
 
     private function bnbTransactionExists($txHash)
@@ -226,9 +163,8 @@ class Web3Controller extends Controller
         }
     }
 
-    private function weiToEth($wei)
+    private function weiToBNB($wei)
     {
-
         if (is_string($wei) && substr($wei, 0, 2) === '0x') {
             $wei = gmp_strval(gmp_init(substr($wei, 2), 16));
         }
@@ -242,13 +178,11 @@ class Web3Controller extends Controller
 
         $result = bcdiv($wei, bcpow('10', '18'), 18);
 
-
         return $result;
     }
 
-    private function weiToMeta($wei)
+    private function weiToMETA($wei)
     {
-
         if (is_string($wei) && substr($wei, 0, 2) === '0x') {
             $wei = gmp_strval(gmp_init(substr($wei, 2), 16));
         }
@@ -260,29 +194,8 @@ class Web3Controller extends Controller
             return '0';
         }
 
-        $result = bcdiv($wei, bcpow('10', '8'), 8);
-
+        $result = bcdiv($wei, bcpow('10', '18'), 18);  // Assuming META has 8 decimal places
 
         return $result;
-    }
-
-    private function decodeMetaTransferInput($input)
-    {
-        if (substr($input, 0, 10) !== '0xa9059cbb') {
-            return null;
-        }
-
-        $to = '0x' . substr($input, 34, 40);
-        $value = hexdec(substr($input, 74));
-
-        return [
-            'to' => $to,
-            'value' => $value,
-        ];
-    }
-
-    private function getMetaAbi()
-    {
-        return json_decode('[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"success","type":"bool"}],"type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"success","type":"bool"}],"type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"remaining","type":"uint256"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_value","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_spender","type":"address"},{"indexed":false,"name":"_value","type":"uint256"}],"name":"Approval","type":"event"}]', true);
     }
 }

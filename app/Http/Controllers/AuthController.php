@@ -60,9 +60,10 @@ class AuthController extends Controller
         }
 
         try {
-            $user = User::where('address', $request->address)->first();
+            $user = User::whereRaw('LOWER(address) = ?', [strtolower($request->address)])->first();
+
             if (!$user) {
-                $user = User::create(['address' => $request->address]);
+                $user = User::create(['address' => strtolower($request->address)]);
             }
             return $this->login($user);
         } catch (\Exception $e) {
