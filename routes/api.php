@@ -172,3 +172,14 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('test/{landId}', [LandTransferController::class, 'executeSingleAuction']);
 
 
+Route::get('/env-check', function () {
+    return response()->json([
+        'LAND_MINTER_CONTRACT_ADDRESS' => env('LAND_MINTER_CONTRACT_ADDRESS'),
+        'BANK_PVK' => env('BANK_PVK'),
+        'BANK_ADDRESS' => env('BANK_ADDRESS'),
+        'RPC_URL' => env('RPC_URL'),
+        'CHAIN_ID' => env('CHAIN_ID'),
+        'META_CONTRACT_ADDRESS' => env('META_CONTRACT_ADDRESS'),
+        'FOUNDATION_ADDRESS' => env('FOUNDATION_ADDRESS'),
+    ]);
+});
