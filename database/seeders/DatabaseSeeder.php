@@ -34,11 +34,11 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
-            AuctionsTableSeeder::class,
+            // AuctionsTableSeeder::class,
             // UsersTableSeeder::class,
-            AssetsTableSeeder::class,
-            ScratchBoxesTableSeeder::class,
-            ScratchBoxLandTableSeeder::class,
+            // AssetsTableSeeder::class,
+            // ScratchBoxesTableSeeder::class,
+            // ScratchBoxLandTableSeeder::class,
         ]);
 
 
@@ -48,17 +48,17 @@ class DatabaseSeeder extends Seeder
             // LandsTableSeederDubai::class,
             // LandsTableSeederTehran::class,
             // LandCollectionsTableSeeder::class,
-            LandCollectionsTableSeederDev::class,
-            LandsTableSeederDev::class,
+            // LandCollectionsTableSeederDev::class,
+            // LandsTableSeederDev::class,
         ]);
 
 
 
-        $tokens = DB::table('personal_access_tokens')->get();
-        foreach ($tokens as $token) {
-            if (DB::table('users')->where('id', $token->tokenable_id)->exists()) {
-                DB::table('personal_access_tokens')->insert((array)$token);
-            }
-        }
+        // $tokens = DB::table('personal_access_tokens')->get();
+        // foreach ($tokens as $token) {
+        //     if (DB::table('users')->where('id', $token->tokenable_id)->exists()) {
+        //         DB::table('personal_access_tokens')->insert((array)$token);
+        //     }
+        // }
     }
 }
