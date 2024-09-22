@@ -49,7 +49,7 @@ class LandTransferController extends Controller
 
             $result = $this->handleLandNFT($land, $buyer);
             if ($result['txHash']) {
-                $land->nft_transaction_hash = $result['txHash'];
+                $land->last_nft_transaction_hash = $result['txHash'];
             }
 
             $updatedLand = LandTransfer::createTransfer(
@@ -98,7 +98,7 @@ class LandTransferController extends Controller
 
                 $result = $this->handleLandNFT($land, $buyer);
                 if ($result['txHash']) {
-                    $land->nft_transaction_hash = $result['txHash'];
+                    $land->last_nft_transaction_hash = $result['txHash'];
                     Log::info("NFT transfer completed", ['txHash' => $result['txHash']]);
                 }
 

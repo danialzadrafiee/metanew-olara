@@ -19,8 +19,8 @@ class Web3Controller extends Controller
     {
         $this->bankAddress = env('BANK_ADDRESS');
         $this->metaContractAddress = env('META_CONTRACT_ADDRESS');
-        $this->etherscanApiKey = '63ZH2CVKCA66584VFTWYUBYEEJ32VPJWFJ';
-        $this->etherscanApiUrl = 'https://api-sepolia-optimism.etherscan.io/api';
+        $this->etherscanApiKey = env('ETHERSCAN_API_KEY');
+        $this->etherscanApiUrl = env('ETHERSCAN_API_URL');
     }
 
     public function checkNewTransactions()

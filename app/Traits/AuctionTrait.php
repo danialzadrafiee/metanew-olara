@@ -61,7 +61,7 @@ trait AuctionTrait
             $result['nft_transfer'] = $nftResult;
     
             if ($nftResult['txHash']) {
-                $auction->land->nft_transaction_hash = $nftResult['txHash'];
+                $auction->land->last_nft_transaction_hash = $nftResult['txHash'];
                 $auction->land->save();
             }
     

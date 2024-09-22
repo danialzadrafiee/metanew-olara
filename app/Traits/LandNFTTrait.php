@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Models\Land;
 use App\Models\User;
+use Illuminate\Support\Facades\Http;
 use Log;
 
 trait LandNFTTrait
@@ -20,7 +21,6 @@ trait LandNFTTrait
         return $result;
     }
 
-
     public function handleLandNFT(Land $land, User $buyer)
     {
         $tokenId = $land->id;
@@ -28,13 +28,17 @@ trait LandNFTTrait
         $approvedAddress = $this->nftController->getApproved($tokenId);
         $bankAddress = env('BANK_ADDRESS');
         if ($currentOwner === null || $approvedAddress === null) {
-            $txHash = $this->nftController->mintNFT($buyer->address, $tokenId, "https://ipfs.io/ipfs/bafybeibulyuw4qmptj3z4kujjh2w5677xx3eizwydz2yao3nnrt7fhsnlq/1000.json");
+            // This is where we'll create and upload the metadata
+            $metadataUri = $this->createAndUploadMetadata($land);
+            $txHash = $this->nftController->mintNFT($buyer->address, $tokenId, $metadataUri);
+            $this->updateLandOwnership($land, $buyer->id, $metadataUri);
             return ['action' => 'minted', 'txHash' => $txHash];
         } elseif (strtolower($currentOwner) === strtolower($buyer->address)) {
             $this->updateLandOwnership($land, $buyer->id);
             return ['action' => 'database_updated', 'txHash' => null];
         } elseif (strtolower($approvedAddress) === strtolower($bankAddress)) {
             $txHash = $this->nftController->transferFrom($currentOwner, $buyer->address, $tokenId);
+            $this->updateLandOwnership($land, $buyer->id);
             return ['action' => 'transferred', 'txHash' => $txHash];
         } else {
             $blockchainOwner = User::whereRaw('LOWER(address) = ?', [strtolower($currentOwner)])->first();
@@ -47,8 +51,85 @@ trait LandNFTTrait
         }
     }
 
-    private function updateLandOwnership(Land $land, int $newOwnerId)
+    private function createAndUploadMetadata(Land $land)
     {
-        $land->update(['owner_id' => $newOwnerId, 'fixed_price' => 0]);
+        // First, upload the image
+        $imagePath = public_path('img/building-empty.png');
+        $imageIpfsHash = $this->uploadToPinata($imagePath);
+
+        // Create metadata
+        $metadata = [
+            "name" => "Land-#{$land->id}",
+            "description" => "A plot of land in the Metareal game",
+            "image" => "ipfs://{$imageIpfsHash}",
+            "attributes" => [
+                [
+                    "trait_type" => "Size",
+                    "value" => $land->size
+                ],
+                // Add more attributes as needed
+            ]
+        ];
+
+        // Convert metadata to JSON
+        $jsonMetadata = json_encode($metadata);
+
+        // Upload JSON metadata to IPFS
+        $metadataIpfsHash = $this->uploadJsonToPinata($jsonMetadata);
+
+        return "ipfs://{$metadataIpfsHash}";
+    }
+
+    private function uploadToPinata($filePath)
+    {
+        $url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
+        $apiKey = env('PINATA_API_KEY');
+        $apiSecret = env('PINATA_API_SECRET');
+
+        $response = Http::withHeaders([
+            'pinata_api_key' => $apiKey,
+            'pinata_secret_api_key' => $apiSecret,
+        ])->attach(
+            'file', file_get_contents($filePath), basename($filePath)
+        )->post($url);
+
+        if ($response->successful()) {
+            return $response->json()['IpfsHash'];
+        } else {
+            throw new \Exception("Failed to upload file to Pinata: " . $response->body());
+        }
+    }
+
+    private function uploadJsonToPinata($jsonContent)
+    {
+        $url = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
+        $apiKey = env('PINATA_API_KEY');
+        $apiSecret = env('PINATA_API_SECRET');
+
+        $response = Http::withHeaders([
+            'pinata_api_key' => $apiKey,
+            'pinata_secret_api_key' => $apiSecret,
+            'Content-Type' => 'application/json',
+        ])->post($url, json_decode($jsonContent, true));
+
+        if ($response->successful()) {
+            return $response->json()['IpfsHash'];
+        } else {
+            throw new \Exception("Failed to upload JSON to Pinata: " . $response->body());
+        }
+    }
+
+    private function updateLandOwnership(Land $land, int $newOwnerId, ?string $ipfsUrl = null)
+    {
+        $updateData = [
+            'owner_id' => $newOwnerId,
+            'fixed_price' => 0,
+        ];
+
+        if ($ipfsUrl !== null) {
+            $updateData['ipfs_url'] = $ipfsUrl;
+        }
+
+        $land->update($updateData);
     }
 }

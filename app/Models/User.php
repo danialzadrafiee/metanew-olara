@@ -12,6 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -20,7 +21,6 @@ class User extends Authenticatable
     protected $with = ['assets', 'quests', 'city'];
 
     protected $appends = ['formatted_assets'];
-
 
     public function setAddressAttribute($value)
     {
@@ -46,11 +46,22 @@ class User extends Authenticatable
                 throw new \Exception('User with ID 1 is reserved for the bank.');
             }
 
-            if ($user->id !== 1) {
-                $lastUser = static::where('id', '>', 1)->orderBy('id', 'desc')->first();
-                $nextId = $lastUser ? $lastUser->id + 1 : 2; // Start from 2 if no other users exist
+            if ($user->id === 2 && $user->nickname !== 'Foundation') {
+                throw new \Exception('User with ID 2 is reserved for the foundation.');
+            }
+
+            if ($user->id === 1) {
+                $user->role = 'bank';
+            } elseif ($user->id === 2) {
+                $user->role = 'foundation';
+            } else {
+                $lastUser = static::where('id', '>', 2)->orderBy('id', 'desc')->first();
+                $nextId = $lastUser ? $lastUser->id + 1 : 3; // Start from 3 if no other users exist
                 $user->id = $nextId;
-                $user->referral_code = $nextId;
+                do {
+                    $referralCode = Str::random(8);
+                } while (static::where('referral_code', $referralCode)->exists());
+                $user->referral_code = $referralCode;
             }
         });
 
@@ -66,8 +77,6 @@ class User extends Authenticatable
             }
         });
     }
-
-
 
     public function ownedLands(): HasMany
     {

@@ -21,7 +21,7 @@ trait ScratchBoxTrait
 
             if ($currentOwner !== null) {
                 $txHash = $this->nftController->transferFrom($bankAddress, $user->address, $tokenId);
-                $land->nft_transaction_hash = $txHash;
+                $land->last_nft_transaction_hash = $txHash;
             }
 
             $land->update([
