@@ -35,8 +35,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             // AuctionsTableSeeder::class,
-            UsersTableSeeder::class,
-            AssetsTableSeeder::class,
+            // UsersTableSeeder::class,
+            // AssetsTableSeeder::class,
             // ScratchBoxesTableSeeder::class,
             // ScratchBoxLandTableSeeder::class,
         ]);
@@ -49,7 +49,7 @@ class DatabaseSeeder extends Seeder
             // LandsTableSeederTehran::class,
             // LandCollectionsTableSeeder::class,
             // LandCollectionsTableSeederDev::class,
-            LandsTableSeederDev::class,
+            // LandsTableSeederDev::class,
         ]);
 
 
