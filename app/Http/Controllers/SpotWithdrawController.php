@@ -47,13 +47,16 @@ class SpotWithdrawController extends Controller
             return response()->json(['error' => 'Insufficient BNB balance'], 400);
         }
 
-        if (!$user->removeAsset('bnb', $amount)) {
-            Log::error("Failed to remove BNB from user {$user->id} account");
-            return response()->json(['error' => 'Failed to remove BNB from user account'], 500);
-        }
-
         try {
+            // Attempt to send the transaction first
             $txHash = $this->sendBnbTransaction($user->address, $amount);
+
+            // If successful, remove the asset from the user's balance
+            if (!$user->removeAsset('bnb', $amount)) {
+                Log::error("Failed to remove BNB from user {$user->id} account after successful transaction");
+                // Consider implementing a reconciliation process here
+                return response()->json(['error' => 'Transaction sent but failed to update user balance. Please contact support.'], 500);
+            }
 
             Web3BnbTransaction::create([
                 'tx_hash' => $txHash,
@@ -65,7 +68,6 @@ class SpotWithdrawController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error("BNB withdrawal failed: " . $e->getMessage());
-            $user->addAsset('bnb', $amount);
             return response()->json(['error' => 'Failed to send BNB transaction: ' . $e->getMessage()], 500);
         }
 
@@ -76,28 +78,172 @@ class SpotWithdrawController extends Controller
         ]);
     }
 
+    public function withdrawMeta(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:0',
+        ]);
+
+        $user = $request->user();
+        $amount = $request->input('amount');
+
+        $spotController = new SpotController();
+        $spotController->updateBalances();
+
+        if (!$user->hasSufficientAsset('meta', $amount)) {
+            return response()->json(['error' => 'Insufficient META balance'], 400);
+        }
+
+        try {
+            // Attempt to send the transaction first
+            $txHash = $this->sendMetaTokenTransaction($user->address, $amount * 10 ** 18);
+
+            // If successful, remove the asset from the user's balance
+            if (!$user->removeAsset('meta', $amount)) {
+                Log::error("Failed to remove META from user {$user->id} account after successful transaction");
+                // Consider implementing a reconciliation process here
+                return response()->json(['error' => 'Transaction sent but failed to update user balance. Please contact support.'], 500);
+            }
+
+            Web3MetaTransaction::create([
+                'tx_hash' => $txHash,
+                'from_address' => $this->bankAddress,
+                'to_address' => $user->address,
+                'amount' => $amount,
+                'block_number' => 0,
+                'is_processed' => true
+            ]);
+        } catch (\Exception $e) {
+            Log::error("META withdrawal failed: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to send META transaction: ' . $e->getMessage()], 500);
+        }
+
+        $spotController->updateBalances();
+        return response()->json([
+            'message' => 'META withdrawal successful',
+            'transaction_hash' => $txHash
+        ]);
+    }
+
     private function sendBnbTransaction($toAddress, $amount)
     {
+        Log::info("Starting BNB transaction", [
+            'to_address' => $toAddress,
+            'amount' => $amount,
+            'bank_address' => $this->bankAddress
+        ]);
+    
         $eth = $this->web3->eth;
         $value = Utils::toWei(strval($amount), 'ether');
-        $valueHex = '0x' . ltrim($value->toHex(true), '0');
+        $valueHex = '0x' . ltrim($value->toHex(), '0');
+    
+        try {
+            $nonce = $this->getNonceSync($this->bankAddress);
+            Log::info("Retrieved nonce", ['nonce' => $nonce]);
+        } catch (\Exception $e) {
+            Log::error("Failed to get nonce", ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    
+        try {
+            $gasPrice = $this->getGasPriceSync();
+            $minGasPrice = Utils::toWei('5', 'gwei');
+            $gasPrice = max($gasPrice, $minGasPrice);
+            $gasPriceHex = '0x' . $gasPrice->toHex();
+            Log::info("Using gas price", ['gas_price' => $gasPriceHex]);
+        } catch (\Exception $e) {
+            Log::error("Failed to get gas price", ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    
+        $chainId = intval(env('CHAIN_ID'));
+        $gasLimit = '0x' . dechex(21000);
+    
+        $transactionParams = [
+            'nonce' => '0x' . ltrim(dechex((int)$nonce), '0'),
+            'from' => $this->bankAddress,
+            'to' => $toAddress,
+            'gas' => $gasLimit,
+            'gasPrice' => $gasPriceHex,
+            'value' => $valueHex,
+            'chainId' => $chainId,
+            'data' => '0x'
+        ];
+        Log::info("Prepared transaction parameters", $transactionParams);
+    
+        $gasCost = Utils::toBn($gasPrice)->multiply(Utils::toBn(21000));
+        $totalCost = Utils::toBn($value)->add($gasCost);
+        Log::info("Transaction cost details", [
+            'gas_cost' => Utils::fromWei($gasCost, 'ether'),
+            'transfer_amount' => Utils::fromWei($value, 'ether'),
+            'total_cost' => Utils::fromWei($totalCost, 'ether')
+        ]);
+    
+        $minTotalCost = Utils::toWei('0.000021', 'ether');
+        if ($totalCost->compare(Utils::toBn($minTotalCost)) < 0) {
+            Log::error("Transaction total cost is too low", [
+                'total_cost' => Utils::fromWei($totalCost, 'ether'),
+                'min_required' => Utils::fromWei($minTotalCost, 'ether')
+            ]);
+            throw new \Exception("Transaction total cost is too low. Minimum required: " . Utils::fromWei($minTotalCost, 'ether') . " BNB");
+        }
+    
+        try {
+            $transaction = new Transaction($transactionParams);
+            $signedTransaction = '0x' . $transaction->sign($this->bankPrivateKey);
+            Log::info("Transaction signed successfully");
+        } catch (\Exception $e) {
+            Log::error("Failed to sign transaction", ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            throw $e;
+        }
+    
+        $txHash = null;
+        $startTime = microtime(true);
+        
+        $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash, $startTime) {
+            $endTime = microtime(true);
+            $duration = ($endTime - $startTime) * 1000;
+            
+            if ($err !== null) {
+                Log::error("Error sending transaction", [
+                    'error' => $err->getMessage(),
+                    'duration_ms' => $duration,
+                    'rpc_url' => env('RPC_URL')
+                ]);
+                throw new \Exception('Error sending transaction: ' . $err->getMessage());
+            }
+            Log::info("Transaction sent successfully", [
+                'tx_hash' => $hash,
+                'duration_ms' => $duration
+            ]);
+            $txHash = $hash;
+        });
+    
+        return $txHash;
+    }
+
+    private function sendMetaTokenTransaction($toAddress, $amount)
+    {
+        $eth = $this->web3->eth;
+        $data = $this->contract->at($this->contractAddress)->getData('transfer', $toAddress, $amount);
         $nonce = $this->getNonceSync($this->bankAddress);
         $gasPrice = $this->getGasPriceSync();
         $chainId = intval(env('CHAIN_ID'));
 
         if ($nonce !== null) {
             $transactionParams = [
-                'nonce' => '0x' . ltrim(dechex($nonce), '0'),
+                'nonce' => '0x' . ltrim(dechex((int)$nonce), '0'),
                 'from' => $this->bankAddress,
-                'to' => $toAddress,
-                'gas' => '0x' . ltrim(dechex(21000), '0'),
+                'to' => $this->contractAddress,
+                'gas' => '0x' . ltrim(dechex(200000), '0'),
                 'gasPrice' => $gasPrice,
-                'value' => $valueHex,
+                'value' => '0x0',
+                'data' => '0x' . $data,
                 'chainId' => $chainId,
-                'data' => '0x'
             ];
         } else {
-            Log::error("Nonce is null. Cannot send transaction.");
+            Log::error("Nonce is null");
+            throw new \Exception("Failed to get nonce for the transaction");
         }
 
         $transaction = new Transaction($transactionParams);
@@ -135,92 +281,9 @@ class SpotWithdrawController extends Controller
             if ($err !== null) {
                 throw new \Exception('Error getting gas price: ' . $err->getMessage());
             }
-            $gasPrice = '0x' . ltrim($price->toHex(true), '0');
+            $gasPrice = $price;
         });
         return $gasPrice;
-    }
-
-    public function withdrawMeta(Request $request)
-    {
-        $request->validate([
-            'amount' => 'required|numeric|min:0',
-        ]);
-
-        $user = $request->user();
-        $amount = $request->input('amount');
-
-        $spotController = new SpotController();
-        $spotController->updateBalances();
-
-        if (!$user->hasSufficientAsset('meta', $amount)) {
-            return response()->json(['error' => 'Insufficient META balance'], 400);
-        }
-
-        if (!$user->removeAsset('meta', $amount)) {
-            Log::error("Failed to remove META from user {$user->id} account");
-            return response()->json(['error' => 'Failed to remove META from user account'], 500);
-        }
-
-        try {
-            $txHash = $this->sendMetaTokenTransaction($user->address, $amount * 10 ** 18);
-
-            Web3MetaTransaction::create([
-                'tx_hash' => $txHash,
-                'from_address' => $this->bankAddress,
-                'to_address' => $user->address,
-                'amount' => $amount,
-                'block_number' => 0,
-                'is_processed' => true
-            ]);
-        } catch (\Exception $e) {
-            Log::error("META withdrawal failed: " . $e->getMessage());
-            $user->addAsset('meta', $amount);
-            return response()->json(['error' => 'Failed to send META transaction: ' . $e->getMessage()], 500);
-        }
-
-        $spotController->updateBalances();
-        return response()->json([
-            'message' => 'META withdrawal successful',
-            'transaction_hash' => $txHash
-        ]);
-    }
-
-    private function sendMetaTokenTransaction($toAddress, $amount)
-    {
-        $eth = $this->web3->eth;
-        $data = $this->contract->at($this->contractAddress)->getData('transfer', $toAddress, $amount);
-        $nonce = $this->getNonceSync($this->bankAddress);
-        $gasPrice = $this->getGasPriceSync();
-        $chainId = intval(env('CHAIN_ID'));
-
-        if ($nonce !== null) {
-            $transactionParams = [
-                'nonce' => '0x' . ltrim(dechex($nonce), '0'),
-                'from' => $this->bankAddress,
-                'to' => $this->contractAddress,
-                'gas' => '0x' . ltrim(dechex(200000), '0'),
-                'gasPrice' => $gasPrice,
-                'value' => '0x0',
-                'data' => '0x' . $data,
-                'chainId' => $chainId,
-            ];
-        } else {
-            Log::error("Nonce is null");
-        }
-
-        $transaction = new Transaction($transactionParams);
-        $signedTransaction = '0x' . $transaction->sign($this->bankPrivateKey);
-
-        $txHash = null;
-        $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {
-            if ($err !== null) {
-                Log::error("Error sending transaction: " . $err->getMessage());
-                throw new \Exception('Error sending transaction: ' . $err->getMessage());
-            }
-            $txHash = $hash;
-        });
-
-        return $txHash;
     }
 
     private function getAbi()

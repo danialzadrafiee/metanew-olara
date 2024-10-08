@@ -17,9 +17,9 @@ class AssetsTableSeeder extends Seeder
             'bnb' => 5,
             'meta' => 0,
             'cp' => 0,
-            'wood' => 0,
+            'wood' => 1000,
             'iron' => 0,
-            'sand' => 0,
+            'sand' => 100,  
             'gold' => 0,
             'scratch_box' => 2,
         ];

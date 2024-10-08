@@ -12,6 +12,8 @@ return new class extends Migration
             $table->id();
             $table->json('data')->nullable();
             $table->string('file_name');
+            $table->string('region')->nullable();
+            $table->string('city')->nullable();
             $table->string('collection_name');
             $table->boolean('is_active')->default(false);
             $table->boolean('is_locked')->default(false);

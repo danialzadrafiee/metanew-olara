@@ -35,11 +35,14 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             // AuctionsTableSeeder::class,
-            // UsersTableSeeder::class,
-            // AssetsTableSeeder::class,
+            UsersTableSeeder::class,
+            // LandCollectionsTableSeeder::class,
+            AssetsTableSeeder::class,
             // ScratchBoxesTableSeeder::class,
             // ScratchBoxLandTableSeeder::class,
         ]);
+        $this->call(LandsTableSeeder::class);
+        $this->call(LandCollectionsTableSeeder::class);
 
 
 
@@ -58,7 +61,6 @@ class DatabaseSeeder extends Seeder
         // foreach ($tokens as $token) {
         //     if (DB::table('users')->where('id', $token->tokenable_id)->exists()) {
         //         DB::table('personal_access_tokens')->insert((array)$token);
-        //     }
-        // }
+        //         $this->call(LandCollectionsTableSeeder::class);
     }
 }

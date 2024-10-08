@@ -17,6 +17,8 @@ class AdminLandCollectionImportController extends Controller
         $request->validate([
             'file' => 'required|file',
             'file_name' => 'required|string|max:255',
+            'region'=> 'sometimes|string|max:255',
+            'city' => 'sometimes|string|max:255',
             'collection_name' => 'required|string|max:255',
             'type' => 'required|in:normal,mine',
         ]);
@@ -49,6 +51,8 @@ class AdminLandCollectionImportController extends Controller
                 'file_name' => $request->file_name,
                 'collection_name' => $request->collection_name,
                 'is_active' => true,
+                'region' => $request->region,
+                'city' => $request->city,
                 'is_locked' => false,
                 'type' => $request->type,
             ]);
@@ -65,8 +69,6 @@ class AdminLandCollectionImportController extends Controller
             }
 
             DB::commit();
-
-       
 
             return response()->json([
                 'message' => 'Import completed',

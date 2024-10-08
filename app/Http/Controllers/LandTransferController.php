@@ -30,26 +30,29 @@ class LandTransferController extends Controller
     public function acceptBuy($landId): JsonResponse
     {
         try {
+            DB::beginTransaction();
+
             $land = Land::findOrFail($landId);
             $buyer = Auth::user();
             $seller = User::findOrFail($land->owner_id);
 
             if ($land->is_suspend) {
-                return response()->json(['message' => 'This land is not for sale.'], 400);
+                throw new \Exception('This land is not for sale.');
             }
 
             if (!$this->isLandApprovedForTransfer($land)) {
                 $land->update(['fixed_price' => 0]);
-                return response()->json(['error' => 'This land is not approved for transfer. The sale has been canceled.'], 400);
+                throw new \Exception('This land is not approved for transfer. The sale has been canceled.');
             }
 
             if (!$buyer->hasSufficientAsset('bnb', $land->fixed_price)) {
-                return response()->json(['error' => 'Insufficient funds to purchase this land.'], 400);
+                throw new \Exception('Insufficient funds to purchase this land.');
             }
 
             $result = $this->handleLandNFT($land, $buyer);
             if ($result['txHash']) {
                 $land->last_nft_transaction_hash = $result['txHash'];
+                $land->save();
             }
 
             $updatedLand = LandTransfer::createTransfer(
@@ -61,11 +64,17 @@ class LandTransferController extends Controller
                 $land->fixed_price
             );
 
+            // Refresh the land data
+            $refreshedLand = $land->fresh();
+
+            DB::commit();
+
             return response()->json([
                 'message' => 'Land purchased successfully.',
-                'land' => $updatedLand,
+                'land' => $refreshedLand,
             ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
@@ -87,6 +96,12 @@ class LandTransferController extends Controller
                 'price' => $offer->price,
                 'asset_type' => $offer->price_asset_type
             ]);
+
+            if ($land->has_active_auction) {
+                Log::warning("Cannot accept offer: Land has an active auction", ['land_id' => $land->id]);
+                return response()->json(['error' => 'This land has an active auction. Offers cannot be accepted at this time.'], 400);
+            }
+
 
             if (!$this->isLandApprovedForTransfer($land)) {
                 Log::warning("Land not approved for transfer", ['land_id' => $land->id]);
@@ -185,38 +200,46 @@ class LandTransferController extends Controller
     }
 
 
-    public function executeAllAuctions(): JsonResponse
+    public function executeAllAuctions($forceExecute = false): JsonResponse
     {
         DB::beginTransaction();
         try {
-            // Get all lands with active auctions
-            $landsWithActiveAuctions = Land::whereHas('auctions', function ($query) {
+            // Get lands with active auctions
+            $landsQuery = Land::whereHas('auctions', function ($query) use ($forceExecute) {
                 $query->where('status', 'active');
-            })->get();
+                if (!$forceExecute) {
+                    $query->where('end_time', '<=', now());
+                }
+            });
+
+            $landsWithAuctions = $landsQuery->get();
 
             $results = [];
 
-            foreach ($landsWithActiveAuctions as $land) {
+            foreach ($landsWithAuctions as $land) {
                 // Execute auction for each land
                 $auctionResult = $this->executeSingleAuction($land->id);
                 $results[] = [
                     'land_id' => $land->id,
-                    'result' => $auctionResult->original // Assuming executeSingleAuction returns a JsonResponse
+                    'result' => $auctionResult->original
                 ];
             }
 
             DB::commit();
 
+            $message = $forceExecute ? 'All active auctions have been forcefully executed.' : 'All ended auctions have been executed.';
+
             return response()->json([
-                'message' => 'All active auctions have been executed.',
+                'message' => $message,
                 'total_processed' => count($results),
                 'results' => $results
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Error executing all auctions: " . $e->getMessage());
+            $errorMessage = $forceExecute ? "Error forcefully executing all auctions: " : "Error executing ended auctions: ";
+            Log::error($errorMessage . $e->getMessage());
             return response()->json([
-                'error' => 'An error occurred while executing all auctions.',
+                'error' => 'An error occurred while executing auctions.',
                 'message' => $e->getMessage()
             ], 500);
         }

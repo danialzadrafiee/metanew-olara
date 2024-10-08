@@ -15,29 +15,51 @@ class LandCollectionsTableSeeder extends Seeder
     public function run()
     {
         
+
+        \DB::table('land_collections')->delete();
         
         \DB::table('land_collections')->insert(array (
             0 => 
             array (
+                'id' => 1,
                 'data' => NULL,
-                'file_name' => 'dubai_clean',
-                'collection_name' => 'dubai_clean_seed',
+                'file_name' => 'g1',
+                'region' => 'R1',
+                'city' => 'Tehran',
+                'collection_name' => 'g1 -- 10-06-2024',
                 'is_active' => true,
                 'is_locked' => false,
                 'type' => 'normal',
-                'created_at' => '2024-09-13 08:21:16',
-                'updated_at' => '2024-09-13 08:21:16',
+                'created_at' => '2024-10-06 13:08:44',
+                'updated_at' => '2024-10-06 13:08:44',
             ),
             1 => 
             array (
+                'id' => 2,
                 'data' => NULL,
-                'file_name' => 'tehran_clean',
-                'collection_name' => 'tehran_clean_seed',
+                'file_name' => 'g2',
+                'region' => 'R2',
+                'city' => 'Tehran',
+                'collection_name' => 'g2 -- 10-06-2024',
                 'is_active' => true,
                 'is_locked' => false,
                 'type' => 'normal',
-                'created_at' => '2024-09-13 08:21:16',
-                'updated_at' => '2024-09-13 08:21:16',
+                'created_at' => '2024-10-06 13:08:51',
+                'updated_at' => '2024-10-06 13:08:51',
+            ),
+            2 => 
+            array (
+                'id' => 3,
+                'data' => NULL,
+                'file_name' => 'g3',
+                'region' => 'R3',
+                'city' => 'Tehran',
+                'collection_name' => 'g3 -- 10-06-2024',
+                'is_active' => true,
+                'is_locked' => false,
+                'type' => 'normal',
+                'created_at' => '2024-10-06 13:08:58',
+                'updated_at' => '2024-10-06 13:08:58',
             ),
         ));
         

@@ -50,23 +50,9 @@ class Land extends Model
             }
         );
     }
-    public function getCenterLatAttribute()
-    {
-        if ($this->attributes['centroid']) {
-            preg_match('/POINT\((.*?) (.*?)\)/', $this->attributes['centroid'], $matches);
-            return $matches[2] ?? null;
-        }
-        return null;
-    }
 
-    public function getCenterLongAttribute()
-    {
-        if ($this->attributes['centroid']) {
-            preg_match('/POINT\((.*?) (.*?)\)/', $this->attributes['centroid'], $matches);
-            return $matches[1] ?? null;
-        }
-        return null;
-    }
+
+
 
     public function centerLat(): Attribute
     {

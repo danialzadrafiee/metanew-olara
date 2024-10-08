@@ -20,7 +20,7 @@ class UsersTableSeeder extends Seeder
         User::create([
             'id' => 3,
             'role' => 0,
-            'address' => '0x092EE4b6b5aEE5B71018e036ce7060A8576F16EE',
+            'address' => '0x83C0Ec776a36Cde3f51250018837cfaa3D17B9d6',
             'nickname' => 'danial',
             'city_id' => $city,
             'avatar_url' => 'https://models.readyplayer.me/66d9b76556f5632cd704d4c0.glb?quality=low&meshLod=0',
@@ -33,7 +33,7 @@ class UsersTableSeeder extends Seeder
             'id' => 4,
             'role' => 0,
             'city_id' => $city,
-            'address' => '0xa2e5527cac3E71609fFD60e6CeBeE39bCD657b97',
+            'address' => '0xab229fC3B342028B5d6323B6f9D23594E7fa1c9b',
             'nickname' => 'Charger',
             'avatar_url' => 'https://models.readyplayer.me/66d9b7c0ecae607181ae18d7.glb?quality=low&meshLod=0',
             'current_mission' => $mission,

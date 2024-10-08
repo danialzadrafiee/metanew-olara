@@ -8,17 +8,34 @@ use Illuminate\Support\Facades\DB;
 
 class AssetListingController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $listings = AssetListing::where('is_active', true)->get();
-        return response()->json(['listings' => $listings]);
-    }
+        $perPage = $request->input('per_page', 2);
+        $userId = $request->user()->id;
+        $type = $request->input('type', 'buy'); // 'buy' or 'own'
 
+        $query = AssetListing::where('is_active', true);
+
+        if ($type === 'buy') {
+            $query->where('user_id', '!=', $userId);
+        } else {
+            $query->where('user_id', $userId);
+        }
+
+        $listings = $query->paginate($perPage);
+
+        return response()->json([
+            'listings' => $listings->items(),
+            'current_page' => $listings->currentPage(),
+            'total_pages' => $listings->lastPage(),
+            'total' => $listings->total(),
+        ]);
+    }
     public function create(Request $request)
     {
         $validatedData = $request->validate([
             'asset_type' => 'required|string|in:gift,ticket,wood,stone,sand,gold',
-            'amount' => 'required|min:1',
+            'amount' => 'required|integer|min:1',
             'price_in_bnb' => 'required|numeric|min:0',
         ]);
         $user = $request->user();
