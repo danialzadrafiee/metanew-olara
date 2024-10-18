@@ -70,7 +70,7 @@ class NftController extends Controller
     {
         $this->contract->at($this->contractAddress)->call('tokenURI', $tokenId, function ($err, $result) use ($tokenId) {
             if ($result) {
-                throw new \Exception("Token ID {$tokenId} already exists.");
+                return response()->json(['error' => "Token ID {$tokenId} already exists."], 400);
             }
         });
 
@@ -94,14 +94,14 @@ class NftController extends Controller
 
         $eth->getTransactionCount($this->bankAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
             if ($err !== null) {
-                throw new \Exception('Error getting nonce: ' . $err->getMessage());
+                return response()->json(['error' => 'Error getting nonce: ' . $err->getMessage()], 400);
             }
             $transactionParams['nonce'] = '0x' . $nonce->toHex(true);
         });
 
         $eth->gasPrice(function ($err, $gasPrice) use (&$transactionParams) {
             if ($err !== null) {
-                throw new \Exception('Error getting gas price: ' . $err->getMessage());
+                return response()->json(['error' => 'Error getting gas price: ' . $err->getMessage()], 400);
             }
             $transactionParams['gasPrice'] = '0x' . $gasPrice->toHex(true);
         });
@@ -112,7 +112,7 @@ class NftController extends Controller
         $txHash = null;
         $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {
             if ($err !== null) {
-                throw new \Exception('Error sending transaction: ' . $err->getMessage());
+                return response()->json(['error' => 'Error sending transaction: ' . $err->getMessage()], 400);
             }
             $txHash = $hash;
         });
@@ -142,14 +142,14 @@ class NftController extends Controller
 
         $eth->getTransactionCount($this->bankAddress, 'pending', function ($err, $nonce) use (&$transactionParams) {
             if ($err !== null) {
-                throw new \Exception('Error getting nonce: ' . json_encode($err));
+                return response()->json(['error' => 'Error getting nonce: ' . json_encode($err)], 400);
             }
             $transactionParams['nonce'] = '0x' . $nonce->toHex(true);
         });
 
         $eth->gasPrice(function ($err, $gasPrice) use (&$transactionParams) {
             if ($err !== null) {
-                throw new \Exception('Error getting gas price: ' . json_encode($err));
+                return response()->json(['error' => 'Error getting gas price: ' . json_encode($err)], 400);
             }
             $transactionParams['gasPrice'] = '0x' . $gasPrice->toHex(true);
         });
@@ -160,13 +160,13 @@ class NftController extends Controller
         $txHash = null;
         $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {
             if ($err !== null) {
-                throw new \Exception('Error sending transaction: ' . json_encode($err));
+                return response()->json(['error' => 'Error sending transaction: ' . json_encode($err)], 400);
             }
             $txHash = $hash;
         });
 
         if ($txHash === null) {
-            throw new \Exception('Transaction hash is null after sending transaction');
+            return response()->json(['error' => 'Transaction hash is null after sending transaction'], 400);
         }
 
         return $txHash;

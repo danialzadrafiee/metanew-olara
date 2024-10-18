@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Import all controllers
 use App\Http\Controllers\{
     AdminAuctionController,
     AdminLandController,
@@ -23,6 +22,7 @@ use App\Http\Controllers\{
     GameEconomySettingsController,
     LandTransferController,
     MarketLandController,
+    NftController,
     ScratchBoxController,
     SpotController,
     SpotWithdrawController
@@ -47,17 +47,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('referral-tree', [UserController::class, 'getReferralTree']);
     });
 
-    // Assets
-    Route::prefix('assets')->group(function () {
-        Route::get('/', [AssetController::class, 'index']);
-        Route::post('update', [AssetController::class, 'update']);
-        Route::get('{userId}/{type}', [AssetController::class, 'getBalance']);
-        Route::post('lock', [AssetController::class, 'lock']);
-        Route::post('unlock', [AssetController::class, 'unlock']);
-        Route::post('add', [AssetController::class, 'add']);
-        Route::post('subtract', [AssetController::class, 'subtract']);
-    });
-
     // Lands
     Route::prefix('lands')->group(function () {
         Route::get('/', [LandController::class, 'getBoundLands']);
@@ -71,6 +60,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{id}/update-price', [LandFixedPriceController::class, 'updatePrice']);
         Route::post('{id}/cancel-sell', [LandFixedPriceController::class, 'cancelSell']);
         Route::post('{id}/buy', [LandTransferController::class, 'acceptBuy']);
+
+        // nft
+        Route::post('mint-nft-if-not-exists-and-you-are-owner', [LandTransferController::class, 'mintNftIfItsNotMintedAndYouAreOwner']);
     });
 
     // Marketplace
@@ -177,6 +169,7 @@ Route::prefix('admin')->group(function () {
         Route::delete('{id}', [AdminScratchBoxController::class, 'destroy']);
         Route::get('all-available-land-ids', [AdminScratchBoxController::class, 'getAllAvailableLandIds']);
         Route::get('available-lands', [AdminScratchBoxController::class, 'getAvailableLands']);
+        Route::get('random-lands', [AdminScratchBoxController::class, 'getRandomLands']);
     });
 });
 
@@ -195,25 +188,20 @@ Route::put('/game_economy_settings/{id}', [GameEconomySettingsController::class,
 Route::get('cron/spot/update_balances', [SpotController::class, 'updateBalances']);
 Route::get('cron/auctions/execute_all_auctions', [LandTransferController::class, 'executeAllAuctions']);
 Route::get('cron/auctions/execute_ended_auctions', [LandTransferController::class, 'executeAllAuctions']);
+
+
+//TESTS
+// Assets **Test**
+Route::prefix('assets')->group(function () {
+    Route::get('/', [AssetController::class, 'index']);
+    Route::post('update', [AssetController::class, 'update']);
+    Route::get('{userId}/{type}', [AssetController::class, 'getBalance']);
+    Route::post('lock', [AssetController::class, 'lock']);
+    Route::post('unlock', [AssetController::class, 'unlock']);
+    Route::post('add', [AssetController::class, 'add']);
+    Route::post('subtract', [AssetController::class, 'subtract']);
+});
+// Cron Jobs
 Route::get('cron/auctions/force_execute_all_auctions', function (LandTransferController $controller) {
     return $controller->executeAllAuctions(true);
-});
-
-// Test Routes
-Route::get('test-ex-single-auction/{landId}', [LandTransferController::class, 'executeSingleAuction']);
-
-// Environment Check
-Route::get('/env-check', function () {
-    return response()->json([
-        'ENV' => $_ENV,
-        'SERVER' => $_SERVER,
-        'APP_NAME' => env('APP_NAME'),
-        'LAND_MINTER_CONTRACT_ADDRESS' => env('LAND_MINTER_CONTRACT_ADDRESS'),
-        'BANK_PVK' => env('BANK_PVK'),
-        'BANK_ADDRESS' => env('BANK_ADDRESS'),
-        'RPC_URL' => env('RPC_URL'),
-        'CHAIN_ID' => env('CHAIN_ID'),
-        'META_CONTRACT_ADDRESS' => env('META_CONTRACT_ADDRESS'),
-        'FOUNDATION_ADDRESS' => env('FOUNDATION_ADDRESS'),
-    ]);
 });

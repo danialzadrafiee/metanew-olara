@@ -46,12 +46,12 @@ class AdminLandCollectionController extends Controller
             $deletedLandsCount = $collection->lands()->delete();
 
             if ($deletedLandsCount !== $landsCount) {
-                throw new \Exception('Failed to delete all associated lands');
+                return response()->json(['error' => 'Failed to delete all associated lands'], 500);
             }
 
             // Delete the collection
             if (!$collection->delete()) {
-                throw new \Exception('Failed to delete the collection');
+                return response()->json(['error' => 'Failed to delete the collection'], 500);
             }
 
             // Commit the transaction
@@ -85,7 +85,7 @@ class AdminLandCollectionController extends Controller
 
                 return response()->json(['message' => 'Active collections updated successfully'], 200);
             } else {
-                throw new \Exception('Update operation failed');
+                return response()->json(['error' => 'Update operation failed'], 400);
             }
         } catch (\Exception $e) {
             Log::error('Update active collections failed', [
@@ -101,10 +101,9 @@ class AdminLandCollectionController extends Controller
         try {
             $collection = LandCollection::findOrFail($collectionId);
             if ($collection->lockLands()) {
-
                 return response()->json(['message' => 'Lands locked successfully'], 200);
             } else {
-                throw new \Exception('Lock operation failed');
+                return response()->json(['error' => 'Lock operation failed'], 400);
             }
         } catch (\Exception $e) {
             Log::error('Lock lands failed', [
@@ -130,7 +129,7 @@ class AdminLandCollectionController extends Controller
                 ], 400);
             } else {
                 Log::error('Unlock operation failed with unknown result', ['result' => $result]);
-                throw new \Exception('Unlock operation failed');
+                return response()->json(['error' => 'Unlock operation failed'], 400);
             }
         } catch (\Exception $e) {
             Log::error('Unlock lands failed', [
@@ -153,7 +152,7 @@ class AdminLandCollectionController extends Controller
                     'is_active' => $collection->is_active
                 ], 200);
             } else {
-                throw new \Exception('Toggle operation failed');
+                return response()->json(['error' => 'Toggle operation failed'], 400);
             }
         } catch (\Exception $e) {
             Log::error('Toggle active status failed', [
@@ -177,7 +176,7 @@ class AdminLandCollectionController extends Controller
 
                 return response()->json(['message' => 'Land type updated successfully'], 200);
             } else {
-                throw new \Exception('Update operation failed');
+                return response()->json(['error' => 'Update operation failed'], 400);
             }
         } catch (\Exception $e) {
             Log::error('Update land type failed', [

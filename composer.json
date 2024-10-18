@@ -7,6 +7,7 @@
     "require": {
         "php": "^8.2",
         "drlecks/simple-web3-php": "^0.10.0",
+        "flugger/laravel-responder": "^3.4",
         "izniburak/laravel-auto-routes": "*",
         "laravel/framework": "^11.9",
         "laravel/sanctum": "^4.0",

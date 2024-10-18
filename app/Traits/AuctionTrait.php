@@ -53,7 +53,7 @@ trait AuctionTrait
             $seller = $auction->land->owner;
     
             if (!$this->isLandApprovedForTransfer($auction->land)) {
-                throw new \Exception("Land is not approved for transfer.");
+                return response()->json(['error' => 'Land is not approved for transfer'], 400);
             }
     
             // Handle NFT transfer
@@ -67,7 +67,7 @@ trait AuctionTrait
     
             // Remove locked assets from buyer
             if (!$buyer->removeLockedAsset('bnb', $highestBid->amount)) {
-                throw new \Exception("Failed to remove locked BNB from buyer {$buyer->id}");
+               return response()->json(['error' => 'Failed to remove locked BNB from buyer'], 500);
             }
     
             // Create auction transfer

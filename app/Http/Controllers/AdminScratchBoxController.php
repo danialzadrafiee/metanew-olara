@@ -22,6 +22,32 @@ class AdminScratchBoxController extends Controller
         }
     }
 
+
+    public function getRandomLands(Request $request)
+    {
+        try {
+            $request->validate([
+                'count' => 'required|integer|min:1',
+            ]);
+    
+            $count = $request->input('count');
+    
+            $randomLands = Land::where('is_locked', true)
+                ->where('is_in_scratch', false)
+                ->inRandomOrder()
+                ->limit($count)
+                ->get(['id', 'name', 'fixed_price', 'size']);
+    
+            return response()->json($randomLands);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to get random lands: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to get random lands'], 500);
+        }
+    }
+
+
     public function create(Request $request)
     {
         try {
@@ -107,7 +133,7 @@ class AdminScratchBoxController extends Controller
             ->get();
 
         if ($lands->count() != count($landIds)) {
-            throw ValidationException::withMessages(['land_ids' => 'Some lands are not valid for scratch box']);
+             return response()->json(['error' => 'Invalid land IDs'], 400);
         }
 
         return $lands;

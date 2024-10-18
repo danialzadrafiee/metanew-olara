@@ -16,7 +16,7 @@ trait ScratchBoxTrait
             $bankAddress = env('BANK_ADDRESS');
 
             if ($currentOwner !== null && strtolower($currentOwner) !== strtolower($bankAddress)) {
-                throw new \Exception("Land {$land->id} is not owned by the bank.");
+              return response()->json(['success' => false, 'message' => 'Land already owned'], 400);
             }
 
             if ($currentOwner !== null) {
@@ -25,6 +25,7 @@ trait ScratchBoxTrait
             }
 
             $land->update([
+                'is_locked'=>false,
                 'owner_id' => $user->id,
                 'fixed_price' => 0
             ]);

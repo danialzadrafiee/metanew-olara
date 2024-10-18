@@ -31,9 +31,9 @@ class AdminLandController extends Controller
         if ($request->has('searchTerm')) {
             $searchTerm = $request->input('searchTerm');
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('id', 'like', '%' . $searchTerm . '%')
+                $q->where('id', 'like',  $searchTerm . '%')
                     ->orWhereHas('owner', function ($query) use ($searchTerm) {
-                        $query->where('nickname', 'like', '%' . $searchTerm . '%');
+                        $query->where('nickname', 'like',  $searchTerm . '%');
                     });
             });
         }

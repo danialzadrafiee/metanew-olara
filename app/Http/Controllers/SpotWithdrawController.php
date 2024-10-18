@@ -132,11 +132,11 @@ class SpotWithdrawController extends Controller
             'amount' => $amount,
             'bank_address' => $this->bankAddress
         ]);
-    
+
         $eth = $this->web3->eth;
         $value = Utils::toWei(strval($amount), 'ether');
         $valueHex = '0x' . ltrim($value->toHex(), '0');
-    
+
         try {
             $nonce = $this->getNonceSync($this->bankAddress);
             Log::info("Retrieved nonce", ['nonce' => $nonce]);
@@ -144,7 +144,7 @@ class SpotWithdrawController extends Controller
             Log::error("Failed to get nonce", ['error' => $e->getMessage()]);
             throw $e;
         }
-    
+
         try {
             $gasPrice = $this->getGasPriceSync();
             $minGasPrice = Utils::toWei('5', 'gwei');
@@ -155,10 +155,10 @@ class SpotWithdrawController extends Controller
             Log::error("Failed to get gas price", ['error' => $e->getMessage()]);
             throw $e;
         }
-    
+
         $chainId = intval(env('CHAIN_ID'));
         $gasLimit = '0x' . dechex(21000);
-    
+
         $transactionParams = [
             'nonce' => '0x' . ltrim(dechex((int)$nonce), '0'),
             'from' => $this->bankAddress,
@@ -170,7 +170,7 @@ class SpotWithdrawController extends Controller
             'data' => '0x'
         ];
         Log::info("Prepared transaction parameters", $transactionParams);
-    
+
         $gasCost = Utils::toBn($gasPrice)->multiply(Utils::toBn(21000));
         $totalCost = Utils::toBn($value)->add($gasCost);
         Log::info("Transaction cost details", [
@@ -178,16 +178,16 @@ class SpotWithdrawController extends Controller
             'transfer_amount' => Utils::fromWei($value, 'ether'),
             'total_cost' => Utils::fromWei($totalCost, 'ether')
         ]);
-    
+
         $minTotalCost = Utils::toWei('0.000021', 'ether');
         if ($totalCost->compare(Utils::toBn($minTotalCost)) < 0) {
             Log::error("Transaction total cost is too low", [
                 'total_cost' => Utils::fromWei($totalCost, 'ether'),
                 'min_required' => Utils::fromWei($minTotalCost, 'ether')
             ]);
-            throw new \Exception("Transaction total cost is too low. Minimum required: " . Utils::fromWei($minTotalCost, 'ether') . " BNB");
+            return response()->json(['error' => 'Transaction total cost is too low'], 400);
         }
-    
+
         try {
             $transaction = new Transaction($transactionParams);
             $signedTransaction = '0x' . $transaction->sign($this->bankPrivateKey);
@@ -196,21 +196,21 @@ class SpotWithdrawController extends Controller
             Log::error("Failed to sign transaction", ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             throw $e;
         }
-    
+
         $txHash = null;
         $startTime = microtime(true);
-        
+
         $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash, $startTime) {
             $endTime = microtime(true);
             $duration = ($endTime - $startTime) * 1000;
-            
+
             if ($err !== null) {
                 Log::error("Error sending transaction", [
                     'error' => $err->getMessage(),
                     'duration_ms' => $duration,
                     'rpc_url' => env('RPC_URL')
                 ]);
-                throw new \Exception('Error sending transaction: ' . $err->getMessage());
+                return response()->json(['error' => 'Error sending transaction: ' . $err->getMessage()], 500);
             }
             Log::info("Transaction sent successfully", [
                 'tx_hash' => $hash,
@@ -218,7 +218,7 @@ class SpotWithdrawController extends Controller
             ]);
             $txHash = $hash;
         });
-    
+
         return $txHash;
     }
 
@@ -243,7 +243,7 @@ class SpotWithdrawController extends Controller
             ];
         } else {
             Log::error("Nonce is null");
-            throw new \Exception("Failed to get nonce for the transaction");
+            return response()->json(['error' => 'Nonce is null'], 400);
         }
 
         $transaction = new Transaction($transactionParams);
@@ -253,7 +253,7 @@ class SpotWithdrawController extends Controller
         $eth->sendRawTransaction($signedTransaction, function ($err, $hash) use (&$txHash) {
             if ($err !== null) {
                 Log::error("Error sending transaction: " . $err->getMessage());
-                throw new \Exception('Error sending transaction: ' . $err->getMessage());
+                return response()->json(['error' => 'Error sending transaction: ' . $err->getMessage()], 500);
             }
             $txHash = $hash;
         });
@@ -267,7 +267,7 @@ class SpotWithdrawController extends Controller
         $this->web3->eth->getTransactionCount($address, 'pending', function ($err, $count) use (&$nonce) {
             if ($err !== null) {
                 Log::error("Error getting nonce: " . $err->getMessage());
-                throw new \Exception('Error getting nonce: ' . $err->getMessage());
+                return response()->json(['error' => 'Error getting nonce: ' . $err->getMessage()], 400);
             }
             $nonce = $count->toString();
         });
@@ -279,7 +279,8 @@ class SpotWithdrawController extends Controller
         $gasPrice = null;
         $this->web3->eth->gasPrice(function ($err, $price) use (&$gasPrice) {
             if ($err !== null) {
-                throw new \Exception('Error getting gas price: ' . $err->getMessage());
+                Log::error("Error getting gas price: " . $err->getMessage());
+                return response()->json(['error' => 'Error getting gas price: ' . $err->getMessage()], 400);
             }
             $gasPrice = $price;
         });

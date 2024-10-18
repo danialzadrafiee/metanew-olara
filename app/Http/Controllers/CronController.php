@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Auction;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
 
 class CronController extends Controller
 {

@@ -19,7 +19,7 @@ class AuctionController extends Controller
             'land_id' => 'required|exists:lands,id',
             'minimum_price' => 'required|numeric|min:0',
             'duration' => 'required|numeric|min:1',
-        ]); 
+        ]);
 
         $land = Land::findOrFail($validatedData['land_id']);
 
@@ -80,13 +80,13 @@ class AuctionController extends Controller
             if ($existingBid) {
                 // Unlock the previous bid amount
                 if (!$user->unlockAsset('bnb', $existingBid->amount)) {
-                    throw new \Exception('Failed to unlock previous bid amount');
+      return response()->json(['error' => 'Insufficient BNB to place bid'], 500);
                 }
             }
 
             // Lock the new bid amount
             if (!$user->lockAsset('bnb', $validatedData['amount'])) {
-                throw new \Exception('Insufficient BNB to place bid');
+                return response()->json(['error' => 'Insufficient BNB to place bid'], 500);
             }
 
             $bid = new AuctionBid([
@@ -117,6 +117,9 @@ class AuctionController extends Controller
 
     public function cancelAuction(Request $request, $auctionId): JsonResponse
     {
+
+
+
         $auction = Auction::findOrFail($auctionId);
         $user = Auth::user();
 
@@ -148,5 +151,4 @@ class AuctionController extends Controller
             return response()->json(['error' => 'Failed to cancel auction: ' . $e->getMessage()], 500);
         }
     }
-    
 }

@@ -37,12 +37,12 @@ class DatabaseSeeder extends Seeder
             // AuctionsTableSeeder::class,
             UsersTableSeeder::class,
             // LandCollectionsTableSeeder::class,
-            AssetsTableSeeder::class,
+            // AssetsTableSeeder::class,
             // ScratchBoxesTableSeeder::class,
             // ScratchBoxLandTableSeeder::class,
         ]);
-        $this->call(LandsTableSeeder::class);
-        $this->call(LandCollectionsTableSeeder::class);
+        // $this->call(LandsTableSeeder::class);
+        // $this->call(LandCollectionsTableSeeder::class);
 
 
 

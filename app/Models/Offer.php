@@ -18,16 +18,16 @@ class Offer extends Model
         static::creating(function ($offer) {
             $user = $offer->user;
             if (!$user) {
-                throw new \Exception('User not found for this offer.');
+                 return response()->json(['error' => 'User not found.'], 400);
             }
             
             $bnbAsset = $user->getAssetAttribute('bnb');
             if ($bnbAsset['free'] < $offer->price) {
-                throw new \Exception('Insufficient BNB to place the offer.');
+                return response()->json(['error' => 'Insufficient BNB balance.'], 400);
             }
             
             if (!$user->lockAsset('bnb', $offer->price)) {
-                throw new \Exception('Failed to lock BNB for the offer.');
+                return response()->json(['error' => 'Insufficient BNB balance.'], 400);
             }
         });
 
@@ -39,7 +39,7 @@ class Offer extends Model
                 $priceDifference = $newPrice - $originalPrice;
                 if ($priceDifference > 0) {
                     if (!$user->lockAsset('bnb', $priceDifference)) {
-                        throw new \Exception('Insufficient BNB to update the offer.');
+                        return response()->json(['error' => 'Insufficient BNB balance.'], 400);
                     }
                 } else {
                     $user->unlockAsset('bnb', abs($priceDifference));
@@ -84,7 +84,7 @@ class Offer extends Model
             // Cancel all other offers for this land
             $cancelledOffers = $land->offers()->where('id', '!=', $this->id)->get();
             foreach ($cancelledOffers as $otherOffer) {
-                $otherOffer->user->unlockAsset('bnb', $otheroffer->price);
+                $otherOffer->user->unlockAsset('bnb', $otherOffer->price);
                 $otherOffer->delete();
             }
 

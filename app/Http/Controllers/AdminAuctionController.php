@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Auction;
 use App\Models\Land;
+use App\Models\AuctionBid;
 use DB;
 use Illuminate\Http\Request;
 
@@ -24,6 +25,15 @@ class AdminAuctionController extends Controller
             $lands = Land::whereIn('id', $validatedData['landIds'])->get();
 
             foreach ($lands as $land) {
+                // Cancel existing active auctions
+                $existingAuctions = Auction::where('land_id', $land->id)
+                    ->where('status', 'active')
+                    ->get();
+
+                foreach ($existingAuctions as $existingAuction) {
+                    $this->cancelAuction($existingAuction);
+                }
+
                 Auction::create([
                     'land_id' => $land->id,
                     'owner_id' => $land->owner_id,
@@ -39,12 +49,13 @@ class AdminAuctionController extends Controller
             }
 
             DB::commit();
-            return response()->json(['message' => 'Auctions created successfully and fixed prices removed']);
+            return response()->json(['message' => 'Auctions created successfully, existing auctions canceled, and fixed prices removed']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Failed to create auctions: ' . $e->getMessage()], 500);
         }
     }
+
     public function bulkCancelAuctions(Request $request)
     {
         $validatedData = $request->validate([
@@ -54,17 +65,19 @@ class AdminAuctionController extends Controller
         DB::beginTransaction();
 
         try {
-            Auction::whereIn('id', $validatedData['auctionIds'])
-                ->update(['status' => 'canceled']);
+            $auctions = Auction::whereIn('id', $validatedData['auctionIds'])->get();
+
+            foreach ($auctions as $auction) {
+                $this->cancelAuction($auction);
+            }
 
             DB::commit();
-            return response()->json(['message' => 'Auctions canceled successfully']);
+            return response()->json(['message' => 'Auctions canceled successfully and assets unlocked']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Failed to cancel auctions: ' . $e->getMessage()], 500);
         }
     }
-
 
     public function bulkRemoveAuctions(Request $request)
     {
@@ -75,10 +88,15 @@ class AdminAuctionController extends Controller
         DB::beginTransaction();
 
         try {
-            Auction::whereIn('id', $validatedData['auctionIds'])->delete();
+            $auctions = Auction::whereIn('id', $validatedData['auctionIds'])->get();
+
+            foreach ($auctions as $auction) {
+                $this->unlockBidsForAuction($auction);
+                $auction->delete();
+            }
 
             DB::commit();
-            return response()->json(['message' => 'Auctions removed successfully']);
+            return response()->json(['message' => 'Auctions removed successfully and assets unlocked']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Failed to remove auctions: ' . $e->getMessage()], 500);
@@ -114,10 +132,26 @@ class AdminAuctionController extends Controller
         $perPage = $request->filled('per_page') ? (int)$request->per_page : 10;
         $auctions = $query->paginate($perPage);
 
-        // Paginate results
-        $perPage = $request->filled('per_page') ? (int)$request->per_page : 10;
-        $auctions = $query->paginate($perPage);
-
         return response()->json($auctions);
+    }
+
+    private function cancelAuction(Auction $auction)
+    {
+        $auction->status = 'canceled';
+        $auction->save();
+
+        $this->unlockBidsForAuction($auction);
+
+        $land = $auction->land;
+        $land->fixed_price = 0;
+        $land->save();
+    }
+
+    private function unlockBidsForAuction(Auction $auction)
+    {
+        $bids = $auction->bids;
+        foreach ($bids as $bid) {
+            $bid->user->unlockAsset('bnb', $bid->amount);
+        }
     }
 }

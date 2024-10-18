@@ -111,7 +111,7 @@ class LandTransfer extends Model
         $success = $transferType === 'offer' ? $buyer->removeLockedAsset($assetType, $assetAmount) : $buyer->removeAsset($assetType, $assetAmount);
         if (!$success) {
             Log::error("Failed to remove assets from buyer", ['buyer_id' => $buyer->id, 'asset_type' => $assetType, 'asset_amount' => $assetAmount]);
-            throw new \Exception("Failed to remove {$assetType} from buyer.");
+            return response()->json(['error' => 'Failed to remove assets from buyer'], 500);
         }
     }
 

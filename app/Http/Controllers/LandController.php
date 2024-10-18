@@ -128,14 +128,17 @@ class LandController extends Controller
                 'owner_id',
                 'fixed_price',
                 'transfer_times',
+                'land_collection_id',
                 DB::raw('ST_AsText(centroid) as centroid')
             )
-                ->with('owner:id,nickname,address')
+                ->with(['owner:id,nickname,address', 'landCollection:id,city,region'])
                 ->lockForUpdate()
                 ->findOrFail($id);
+
             if (connection_aborted()) {
                 abort(499, 'Client Closed Request');
             }
+
             $this->syncOwnerWithBlockchain($land);
             $land->refresh();
 
@@ -146,6 +149,8 @@ class LandController extends Controller
             $response['center_long'] = $land->center_long;
             $response['transfer_times'] = $land->transfer_times;
             $response['updated_at'] = $land->updated_at;
+            $response['city'] = $land->city;
+            $response['region'] = $land->region;
 
             $response['owner'] = [
                 'id' => $land->owner->id,
@@ -163,6 +168,9 @@ class LandController extends Controller
             return response()->json($response);
         });
     }
+
+
+    
     private function syncOwnerWithBlockchain(Land $land)
     {
         $tokenId = $land->id;

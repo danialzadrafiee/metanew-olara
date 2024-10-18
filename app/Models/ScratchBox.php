@@ -6,8 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ScratchBox extends Model
 {
-    protected $casts = [
-    ];
+    protected $casts = [];
     protected $appends = ['type', 'size'];
     public function lands()
     {
@@ -19,29 +18,31 @@ class ScratchBox extends Model
         return $this->lands()->count() === 1 ? 'single' : 'bulk';
     }
 
-    public function open(User $user)
-    {
-        if ($this->status !== 'sold') {
-            throw new \Exception('This scratch box is not available for opening.');
-        }
 
-        $lands = $this->lands;
 
-        foreach ($lands as $land) {
 
-            $land->transfer(
-                $user->id,
-            );
-            $land->update([
-                'is_in_scratch' => false,
-                'is_locked'=>false,
-            ]);
-        }
+    // public function open(User $user)
+    // {
+    //     if ($this->status !== 'sold') {
+    //      return response()->json(['error' => 'This scratch box is not available for opening.'], 400);
+    //     }
+    //     $lands = $this->lands;
+    //     foreach ($lands as $land) {
+    //         $land->transfer(
+    //             $user->id,
+    //         );
+    //         $land->update([
+    //             'is_in_scratch' => false,
+    //             'is_locked'=>false,
+    //         ]);
+    //     }
+    //     $this->update(['status' => 'opened']);
+    //     return $lands;
+    // }
 
-        $this->update(['status' => 'opened']);
 
-        return $lands;
-    }
+
+
 
     public function assets()
     {

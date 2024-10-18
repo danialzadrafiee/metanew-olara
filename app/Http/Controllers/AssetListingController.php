@@ -44,7 +44,7 @@ class AssetListingController extends Controller
 
         try {
             if (!$user->lockAsset($validatedData['asset_type'], $validatedData['amount'])) {
-                throw new \Exception('Insufficient assets');
+                return response()->json(['error' => 'Insufficient assets'], 400);
             }
 
             $listing = AssetListing::create([
@@ -59,14 +59,14 @@ class AssetListingController extends Controller
             return response()->json(['message' => 'Listing created successfully', 'listing' => $listing]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 400);
+            return response()->json(['error' => $e->getMessage()], 400);
         }
     }
 
     public function update(Request $request, AssetListing $listing)
     {
         if ($listing->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            return response()->json(['error' => 'Unauthorized'], 403);
         }
 
         $validatedData = $request->validate([
@@ -81,7 +81,7 @@ class AssetListingController extends Controller
     public function destroy(AssetListing $listing)
     {
         if ($listing->user_id !== request()->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            return response()->json(['error' => 'Unauthorized'], 403);
         }
 
         DB::beginTransaction();
@@ -90,7 +90,7 @@ class AssetListingController extends Controller
             $user = request()->user();
 
             if (!$user->unlockAsset($listing->asset_type, $listing->amount)) {
-                throw new \Exception('Failed to unlock asset');
+                return response()->json(['error' => 'Failed to unlock asset'], 400);
             }
 
             $listing->delete();
@@ -100,7 +100,7 @@ class AssetListingController extends Controller
             return response()->json(['message' => 'Listing removed successfully']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 400);
+            return response()->json(['error' => $e->getMessage()], 400);
         }
     }
 
@@ -109,27 +109,27 @@ class AssetListingController extends Controller
         $buyer = request()->user();
 
         if ($listing->user_id === $buyer->id) {
-            return response()->json(['message' => 'You cannot buy your own listing'], 400);
+            return response()->json(['error' => 'You cannot buy your own listing'], 400);
         }
 
         DB::beginTransaction();
 
         try {
             if (!$buyer->removeAsset('bnb', $listing->price_in_bnb)) {
-                throw new \Exception('Insufficient BNB balance');
+                return response()->json(['error' => 'Insufficient BNB balance'], 400);
             }
 
             $seller = $listing->user;
             if (!$seller->addAsset('bnb', $listing->price_in_bnb)) {
-                throw new \Exception('Failed to transfer BNB to seller');
+                return response()->json(['error' => 'Failed to transfer BNB to seller'], 400);
             }
 
             if (!$seller->removeLockedAsset($listing->asset_type, $listing->amount)) {
-                throw new \Exception('Failed to remove locked asset from seller');
+                return response()->json(['error' => 'Failed to remove locked asset from seller'], 400);
             }
 
             if (!$buyer->addAsset($listing->asset_type, $listing->amount)) {
-                throw new \Exception('Failed to add asset to buyer');
+                return response()->json(['error' => 'Failed to add asset to buyer'], 400);
             }
 
             $listing->delete();
@@ -139,7 +139,7 @@ class AssetListingController extends Controller
             return response()->json(['message' => 'Asset purchased successfully']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 400);
+            return response()->json(['error' => $e->getMessage()], 400);
         }
     }
 }

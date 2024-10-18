@@ -58,30 +58,30 @@ class QuestController extends Controller
     {
         $quest_id = $request->input('quest_id');
         Log::info("Attempting to complete quest", ['quest_id' => $quest_id]);
-    
+
         return DB::transaction(function () use ($quest_id) {
             $user = Auth::user();
-    
+
             if (!$user) {
                 Log::error('No authenticated user found');
                 return response()->json(['message' => 'User not authenticated'], 401);
             }
-    
+
             $quest = Quest::find($quest_id);
-    
+
             if (!$quest) {
                 Log::error('Quest not found', ['quest_id' => $quest_id]);
                 return response()->json(['message' => 'Quest not found'], 404);
             }
-    
+
             if ($user->quests()->where('quest_id', $quest_id)->wherePivot('completed_at', '!=', null)->exists()) {
                 return response()->json(['message' => 'Quest already completed'], 400);
             }
-    
+
             // Decode JSON data
             $costs = json_decode($quest->costs, true);
             $rewards = json_decode($quest->rewards, true);
-    
+
             // Deduct costs
             if ($costs) {
                 foreach ($costs as $cost) {
@@ -95,7 +95,7 @@ class QuestController extends Controller
                     }
                 }
             }
-    
+
             // Add rewards
             if ($rewards) {
                 foreach ($rewards as $reward) {
@@ -105,14 +105,14 @@ class QuestController extends Controller
                             'reward_type' => $reward['type'],
                             'reward_amount' => $reward['amount']
                         ]);
-                        throw new \Exception('Failed to add reward to user');
+                        return response()->json(['message' => 'Failed to add reward to user'], 500);
                     }
                 }
             }
-    
+
             $user->quests()->attach($quest_id, ['completed_at' => now()]);
             Log::info("Quest completed successfully", ['user_id' => $user->id, 'quest_id' => $quest_id]);
-    
+
             return response()->json(['message' => 'Quest completed and rewards added'], 200);
         });
     }

@@ -50,7 +50,7 @@ class ScratchBoxController extends Controller
         try {
             // Deduct BNB from user
             if (!$user->removeAsset('bnb', $scratchBox->price)) {
-                throw new \Exception('Failed to lock BNB for purchase.');
+              return response()->json(['error' => 'Failed to deduct BNB from user.'], 400);
             }
             $scratchBox->update([
                 'status' => 'sold',
@@ -71,18 +71,15 @@ class ScratchBoxController extends Controller
     public function open($id)
     {
         $user = Auth::user();
-
         $scratchBox = ScratchBox::findOrFail($id);
-
         if ($scratchBox->status !== 'sold') {
             return response()->json(['error' => 'This scratch box is not available for opening.'], 400);
         }
-
         DB::beginTransaction();
         try {
             $scratchBoxAsset = $user->assets()->where('type', 'scratch_box')->lockForUpdate()->first();
             if (!$scratchBoxAsset || $scratchBoxAsset->amount <= 0) {
-                throw new \Exception('There are no scratch boxes available to open.');
+                return response()->json(['error' => 'Insufficient scratch box assets.'], 400);
             }
             $lands = $scratchBox->open($user);
             $scratchBoxAsset->amount -= 1;
@@ -98,6 +95,10 @@ class ScratchBoxController extends Controller
             return response()->json(['error' => 'Failed to open scratch box: ' . $e->getMessage()], 500);
         }
     }
+
+
+
+
 
     public function available()
     {

@@ -13,6 +13,7 @@ class Auction extends Model
 {
     protected $casts = [
         'end_time' => 'datetime',
+        'start_time' => 'datetime',
     ];
 
     public function land(): BelongsTo
@@ -86,10 +87,10 @@ class Auction extends Model
         $land->save();
 
         if (!$seller->addAsset('bnb', $highestBid->amount)) {
-            throw new Exception("Failed to add BNB to seller");
+            return response()->json(['error' => 'Failed to add BNB to seller'], 500);
         }
         if (!$buyer->removeLockedAsset('bnb', $highestBid->amount)) {
-            throw new Exception("Failed to remove BNB from buyer");
+            return response()->json(['error' => 'Failed to remove locked BNB from buyer'], 500);
         }
 
       
@@ -109,7 +110,7 @@ class Auction extends Model
         $otherBids = $this->bids()->where('user_id', '!=', $winningBidderId)->get();
         foreach ($otherBids as $bid) {
             if (!$bid->user->unlockAsset('bnb', $bid->amount)) {
-                throw new Exception("Failed to unlock BNB for user {$bid->user_id}");
+             return response()->json(['error' => 'Failed to unlock BNB from other bids'], 500);
             }
         }
     }

@@ -20,7 +20,7 @@ class BuildingController extends Controller
 
         $land = Land::findOrFail($request->land_id);
         $land->building_id = $request->building_id;
-        $land->building_name = "Building " . $request->building_id; // Optional: Set a name for the building
+        $land->building_name = "Building " . $request->building_id; 
         $land->save();
 
         $user->removeAsset('wood', 10);

@@ -43,11 +43,11 @@ class User extends Authenticatable
 
         static::creating(function ($user) {
             if ($user->id === 1 && $user->nickname !== 'Bank') {
-                throw new \Exception('User with ID 1 is reserved for the bank.');
+               return response()->json(['error' => 'User with ID 1 is reserved for the bank.'], 400);
             }
 
             if ($user->id === 2 && $user->nickname !== 'Foundation') {
-                throw new \Exception('User with ID 2 is reserved for the foundation.');
+               return response()->json(['error' => 'User with ID 2 is reserved for the foundation.'], 400);
             }
 
             if ($user->id === 1) {

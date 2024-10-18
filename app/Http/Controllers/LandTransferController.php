@@ -12,6 +12,7 @@ use App\Traits\AuctionTrait;
 use App\Traits\LandNFTTrait;
 use App\Traits\ScratchBoxTrait;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +28,16 @@ class LandTransferController extends Controller
         $this->nftController = $nftController;
     }
 
+    public function mintNftIfItsNotMintedAndYouAreOwner(Request $request)
+    {
+
+        $land = Land::findOrFail($request->land_id);
+        $buyer = Auth::user();
+
+        $result = $this->handleLandNFT($land, $buyer);
+        return response()->json($result, 200);
+    }
+
     public function acceptBuy($landId): JsonResponse
     {
         try {
@@ -37,16 +48,21 @@ class LandTransferController extends Controller
             $seller = User::findOrFail($land->owner_id);
 
             if ($land->is_suspend) {
-                throw new \Exception('This land is not for sale.');
+                return response()->json(['error' => 'This land is suspended.'], 400);
             }
 
             if (!$this->isLandApprovedForTransfer($land)) {
                 $land->update(['fixed_price' => 0]);
-                throw new \Exception('This land is not approved for transfer. The sale has been canceled.');
+                DB::commit();
+                return response()->json([
+                    'error' => 'This land is not approved for transfer. The sale has been canceled.',
+                ], 500);
             }
 
             if (!$buyer->hasSufficientAsset('bnb', $land->fixed_price)) {
-                throw new \Exception('Insufficient funds to purchase this land.');
+                return response()->json([
+                    'error' => 'You do not have enough BNB to purchase this land.',
+                ], 400);
             }
 
             $result = $this->handleLandNFT($land, $buyer);
@@ -55,7 +71,7 @@ class LandTransferController extends Controller
                 $land->save();
             }
 
-            $updatedLand = LandTransfer::createTransfer(
+            LandTransfer::createTransfer(
                 $land,
                 $seller,
                 $buyer,
@@ -199,7 +215,6 @@ class LandTransferController extends Controller
         }
     }
 
-
     public function executeAllAuctions($forceExecute = false): JsonResponse
     {
         DB::beginTransaction();
@@ -254,13 +269,13 @@ class LandTransferController extends Controller
             $scratchBox = ScratchBox::lockForUpdate()->findOrFail($scratchBoxId);
 
             if ($scratchBox->status === 'opened') {
-                throw new \Exception('This scratch box has already been opened.');
+                return response()->json(['error' => 'Scratch box already opened.'], 400);
             }
 
             $scratchBoxAsset = $user->assets()->where('type', 'scratch_box')->lockForUpdate()->firstOrFail();
 
             if ($scratchBoxAsset->amount <= 0) {
-                throw new \Exception('You do not have any scratch boxes available to open.');
+                return response()->json(['error' => 'Insufficient scratch box assets.'], 400);
             }
 
             $result = $this->processLands($scratchBox->lands, $user);
@@ -272,10 +287,7 @@ class LandTransferController extends Controller
             }
 
             $scratchBox->update(['status' => 'opened']);
-
             DB::commit();
-
-            Log::info("Scratch box {$scratchBoxId} opened by user {$user->id}. Transferred: " . count($result['transferred']) . ", Failed: " . count($result['failed']) . ", Refunded: {$result['refundAmount']} BNB");
 
             return response()->json([
                 'message' => 'Scratch box opened successfully.',
@@ -285,7 +297,6 @@ class LandTransferController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Failed to open scratch box {$scratchBoxId} for user {$user->id}: " . $e->getMessage());
             return response()->json(['error' => 'Failed to open scratch box: ' . $e->getMessage()], 500);
         }
     }

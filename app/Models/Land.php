@@ -18,7 +18,9 @@ class Land extends Model
         'is_for_sale',
         'center_lat',
         'center_long',
-        'coordinates'
+        'coordinates',
+        'city',
+        'region'
     ];
     protected $with = [
         'landCollection'
@@ -33,7 +35,7 @@ class Land extends Model
         'fixed_price' => 'double',
     ];
 
- 
+
     public function coordinates(): Attribute
     {
         return Attribute::make(
@@ -51,6 +53,17 @@ class Land extends Model
         );
     }
 
+
+
+    public function getCityAttribute()
+    {
+        return $this->landCollection->city ?? null;
+    }
+
+    public function getRegionAttribute()
+    {
+        return $this->landCollection->region ?? null;
+    }
 
 
 
@@ -118,6 +131,7 @@ class Land extends Model
             'id' => $activeAuction->id,
             'land_id' => $activeAuction->land_id,
             'minimum_price' => $activeAuction->minimum_price,
+            'start_time' => $activeAuction->start_time,
             'end_time' => $activeAuction->end_time,
             'is_active' => $activeAuction->is_active,
             'highest_bid' => $activeAuction->highest_bid,
@@ -177,10 +191,10 @@ class Land extends Model
         return $this->belongsTo(LandCollection::class);
     }
 
-
     public function transfer($receiver_id)
     {
         $this->update([
+            'is_locked' => false,
             'owner_id' => $receiver_id,
             'fixed_price' => 0,
         ]);
