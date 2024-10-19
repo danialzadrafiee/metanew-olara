@@ -19,6 +19,7 @@ use App\Http\Controllers\{
     AuthController,
     BuildingController,
     CityController,
+    EarnController,
     GameEconomySettingsController,
     LandTransferController,
     MarketLandController,
@@ -184,11 +185,21 @@ Route::prefix('cities')->group(function () {
 // Game Economy Settings
 Route::put('/game_economy_settings/{id}', [GameEconomySettingsController::class, 'update']);
 
+
+
 // Cron Jobs
 Route::get('cron/spot/update_balances', [SpotController::class, 'updateBalances']);
 Route::get('cron/auctions/execute_all_auctions', [LandTransferController::class, 'executeAllAuctions']);
 Route::get('cron/auctions/execute_ended_auctions', [LandTransferController::class, 'executeAllAuctions']);
 
+
+
+//Earning
+//Earning
+Route::prefix('earn')->group(function () {
+    Route::any('distribute', [EarnController::class, 'distribute']);
+    Route::get('history', [EarnController::class, 'history']);
+});
 
 //TESTS
 // Assets **Test**

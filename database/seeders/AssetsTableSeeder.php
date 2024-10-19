@@ -16,7 +16,6 @@ class AssetsTableSeeder extends Seeder
         $regularAssetTypes = [
             'bnb' => 5,
             'meta' => 0,
-            'cp' => 0,
             'wood' => 1000,
             'iron' => 0,
             'sand' => 100,  
@@ -54,6 +53,20 @@ class AssetsTableSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
                 }
+
+                // Add CP with random amount between 100 and 1000, 10% locked
+                $cpAmount = rand(100, 1000);
+                $lockedAmount = round($cpAmount * 0.1);
+                $freeAmount = $cpAmount - $lockedAmount;
+
+                DB::table('assets')->insert([
+                    'user_id' => $userId,
+                    'type' => 'cp',
+                    'amount' => $cpAmount,
+                    'locked_amount' => $lockedAmount,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
         }
     }
