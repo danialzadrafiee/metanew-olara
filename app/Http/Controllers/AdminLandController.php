@@ -15,59 +15,57 @@ class AdminLandController extends Controller
 
     public function index(Request $request)
     {
-        $query = Land::query();
-
-
-        // Apply filters
+        // Start with a query builder and select only needed fields
+        $query = Land::query()
+            ->select(['id', 'fixed_price', 'owner_id', 'land_collection_id', 'size', 'type'])
+            ->with(['owner:id,nickname']); 
+    
         if ($request->boolean('filterForSale')) {
-            $query->where('fixed_price', '>', 0);
+            $query->whereRaw('fixed_price > 0');
         }
         if ($request->has('onlyBankLands')) {
-            $query->where('owner_id', 1);
+            $query->whereRaw('owner_id = 1');
         }
         if ($request->has('selectedCollection')) {
-            $query->where('land_collection_id', $request->input('selectedCollection'));
+            $query->whereRaw('land_collection_id = ?', [$request->input('selectedCollection')]);
         }
+        
         if ($request->has('searchTerm')) {
             $searchTerm = $request->input('searchTerm');
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('id', 'like',  $searchTerm . '%')
-                    ->orWhereHas('owner', function ($query) use ($searchTerm) {
-                        $query->where('nickname', 'like',  $searchTerm . '%');
+                $q->whereRaw('id::text LIKE ?', [$searchTerm . '%'])
+                    ->orWhereExists(function ($subquery) use ($searchTerm) {
+                        $subquery->select(DB::raw(1))
+                            ->from('users')
+                            ->whereColumn('users.id', 'lands.owner_id')
+                            ->where('users.nickname', 'like', $searchTerm . '%');
                     });
             });
         }
-        // Apply sorting
+    
+        // Use index-friendly sorting
         $sortBy = $request->input('sortBy', 'id');
         $sortOrder = $request->input('sortOrder', 'asc');
         $query->orderBy($sortBy, $sortOrder);
-
-        // Paginate results
+    
+        // Optimize pagination
         $perPage = $request->input('perPage', 12);
         $page = $request->input('page', 1);
-        $total = $query->count();
-
-        $results = $query->offset(($page - 1) * $perPage)->limit($perPage)->get();
-
-        // Exclude specific fields
-        $excludedFields = ['coordinates', 'centroid', 'geom', 'owner'];
-        $filteredLands = $results->map(function ($land) use ($excludedFields) {
-            return collect($land->toArray())
-                ->except($excludedFields)
-                ->all();
-        });
-
-        // Create a new paginator instance with the filtered data
-        $paginator = new LengthAwarePaginator(
-            $filteredLands,
+        
+        $total = $query->toBase()->getCountForPagination();
+    
+        // Get paginated results
+        $results = $query->forPage($page, $perPage)->get();
+    
+        return new LengthAwarePaginator(
+            $results,
             $total,
             $perPage,
             $page,
             ['path' => LengthAwarePaginator::resolveCurrentPath()]
         );
-
-        return response()->json($paginator);
     }
+
 
     public function getAllLandIds()
     {
