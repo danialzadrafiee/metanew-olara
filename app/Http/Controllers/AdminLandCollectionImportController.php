@@ -1,148 +1,182 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+namespace App\Http\Controllers;
 
-return new class extends Migration {
-    public function up(): void
+use App\Models\LandCollection;
+use DB;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
+class AdminLandCollectionImportController extends Controller
+{
+    const BATCH_SIZE = 1000;
+    public function import(Request $request)
     {
-        // Enable required extensions safely
-        DB::statement('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+        $request->validate([
+            'file' => 'required|file',
+            'file_name' => 'required|string|max:255',
+            'region'=> 'sometimes|string|max:255', 
+            'city' => 'sometimes|string|max:255',
+            'collection_name' => 'required|string|max:255',
+            'type' => 'required|in:normal,mine',
+        ]);
 
-        // First drop any conflicting indexes
-        $this->dropConflictingIndexes();
+        $file = $request->file('file');
+        $jsonContents = file_get_contents($file->path());
+        $data = json_decode($jsonContents);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::info('Invalid JSON format', [
+                'error' => json_last_error_msg(),
+                'file_name' => $request->file_name
+            ]);
+            return response()->json(['error' => 'Invalid JSON format: ' . json_last_error_msg()], 400);
+        }
+
+        $validationResult = $this->validateGeoJSON($data);
+        if ($validationResult !== true) {
+            Log::info('Invalid GeoJSON format', [
+                'error' => $validationResult,
+                'file_name' => $request->file_name
+            ]);
+            return response()->json(['error' => 'Invalid GeoJSON format: ' . $validationResult], 400);
+        }
 
         try {
-            // Spatial indexes (if don't exist)
-            if (!$this->indexExists('lands_geom_gist_idx')) {
-                DB::statement('CREATE INDEX lands_geom_gist_idx ON lands USING GIST (geom) WITH (FILLFACTOR = 90)');
-            }
-            
-            if (!$this->indexExists('lands_simplified_geom_idx')) {
-                DB::statement('CREATE INDEX lands_simplified_geom_idx ON lands USING GIST (ST_Simplify(geom, 0.01))');
-            }
+            DB::beginTransaction();
 
-            // BRIN index for sequential scans
-            if (!$this->indexExists('lands_id_brin_idx')) {
-                DB::statement('CREATE INDEX lands_id_brin_idx ON lands USING BRIN (id) WITH (pages_per_range = 128)');
-            }
+            Log::info("Starting import", [
+                'file_name' => $request->file_name,
+                'collection_name' => $request->collection_name
+            ]);
 
-            // Composite indexes for common queries
-            $compositeIndexes = [
-                'lands_owner_composite_idx' => 'CREATE INDEX lands_owner_composite_idx ON lands (owner_id, id, fixed_price, type)',
-                'lands_collection_composite_idx' => 'CREATE INDEX lands_collection_composite_idx ON lands (land_collection_id, id, owner_id)',
-                'lands_price_composite_idx' => 'CREATE INDEX lands_price_composite_idx ON lands (fixed_price, id) WHERE fixed_price > 0',
-                'lands_type_composite_idx' => 'CREATE INDEX lands_type_composite_idx ON lands (type, id, owner_id)',
-                'lands_updated_at_idx' => 'CREATE INDEX lands_updated_at_idx ON lands (updated_at, id)'
-            ];
+            $landCollection = LandCollection::create([
+                'file_name' => $request->file_name,
+                'collection_name' => $request->collection_name,
+                'is_active' => true,
+                'region' => $request->region,
+                'city' => $request->city,
+                'is_locked' => false,
+                'type' => $request->type,
+            ]);
 
-            foreach ($compositeIndexes as $indexName => $sql) {
-                if (!$this->indexExists($indexName)) {
-                    DB::statement($sql);
-                }
-            }
+            $totalFeatures = count($data->features);
+            $createdLands = $this->processFeaturesInBatches($data->features, $landCollection->id, $totalFeatures);
 
-            // Covering indexes
-            $coveringIndexes = [
-                'lands_owner_lookup_idx' => 'CREATE INDEX lands_owner_lookup_idx ON lands (owner_id, land_collection_id) INCLUDE (fixed_price, type, size, is_locked)',
-                'lands_price_lookup_idx' => 'CREATE INDEX lands_price_lookup_idx ON lands (fixed_price) INCLUDE (owner_id, type, size, land_collection_id) WHERE fixed_price > 0',
-                'auctions_land_status_idx' => 'CREATE INDEX auctions_land_status_idx ON auctions (land_id, status) INCLUDE (minimum_price, highest_bid)'
-            ];
+            DB::commit();
 
-            foreach ($coveringIndexes as $indexName => $sql) {
-                if (!$this->indexExists($indexName)) {
-                    DB::statement($sql);
-                }
-            }
+            Log::info("Import completed", [
+                'total_processed' => $createdLands,
+                'collection_id' => $landCollection->id
+            ]);
 
-            // Attempt to cluster only if the index exists
-            if ($this->indexExists('lands_geom_gist_idx')) {
-                DB::statement('CLUSTER lands USING lands_geom_gist_idx');
-            }
-
-            // Update statistics
-            DB::statement('ANALYZE lands');
-
-            // Optimize table parameters
-            DB::statement('ALTER TABLE lands SET (autovacuum_vacuum_scale_factor = 0.05)');
-            DB::statement('ALTER TABLE lands SET (autovacuum_analyze_scale_factor = 0.02)');
-            DB::statement('ALTER TABLE lands SET (fillfactor = 90)');
-
-            // Create statistics if they don't exist
-            if (!$this->statisticsExists('lands_multi_stats')) {
-                DB::statement('CREATE STATISTICS lands_multi_stats (dependencies) ON owner_id, land_collection_id, fixed_price FROM lands');
-            }
+            return response()->json([
+                'message' => 'Import completed',
+                'lands_created' => $createdLands,
+            ], 200);
 
         } catch (\Exception $e) {
-            // Log the error and continue with other operations
-            \Log::error('Error during index creation: ' . $e->getMessage());
+            DB::rollBack();
+            
+            Log::info('Import failed', [
+                'error' => $e->getMessage(),
+                'file_name' => $request->file_name,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
         }
     }
 
-    public function down(): void
+    private function processFeaturesInBatches($features, $landCollectionId, $totalFeatures)
     {
-        $indexes = [
-            'lands_geom_gist_idx',
-            'lands_simplified_geom_idx',
-            'lands_id_brin_idx',
-            'lands_owner_composite_idx',
-            'lands_collection_composite_idx',
-            'lands_price_composite_idx',
-            'lands_type_composite_idx',
-            'lands_updated_at_idx',
-            'lands_owner_lookup_idx',
-            'lands_price_lookup_idx',
-            'auctions_land_status_idx'
-        ];
+        $createdLands = 0;
+        $batch = [];
+        $batchParams = [];
+        $logInterval = max(1, ceil($totalFeatures * 0.005));
 
-        foreach ($indexes as $indexName) {
-            if ($this->indexExists($indexName)) {
-                DB::statement("DROP INDEX IF EXISTS {$indexName}");
+        // Prepare the SQL template
+        $sqlTemplate = "INSERT INTO lands (geom, centroid, size, owner_id, fixed_price, is_locked, type, land_collection_id, created_at, updated_at) VALUES ";
+        $now = now()->format('Y-m-d H:i:s');
+
+        foreach ($features as $index => $feature) {
+            $coordinates = json_encode($feature->geometry);
+            
+            $batch[] = "(ST_Multi(ST_GeomFromGeoJSON(?)), ST_Centroid(ST_GeomFromGeoJSON(?)), CAST(ST_Area(ST_GeomFromGeoJSON(?)::geography) AS INTEGER), ?, ?, ?, ?, ?, ?, ?)";
+            $batchParams[] = $coordinates;
+            $batchParams[] = $coordinates;
+            $batchParams[] = $coordinates;
+            $batchParams[] = 1; // owner_id
+            $batchParams[] = 0; // fixed_price
+            $batchParams[] = false; // is_locked
+            $batchParams[] = 'normal'; // type
+            $batchParams[] = $landCollectionId;
+            $batchParams[] = $now;
+            $batchParams[] = $now;
+
+            if (count($batch) >= self::BATCH_SIZE || $index === count($features) - 1) {
+                // Execute batch insert
+                $sql = $sqlTemplate . implode(',', $batch);
+                DB::statement($sql, $batchParams);
+
+                $createdLands += count($batch);
+                
+                if ($createdLands % $logInterval === 0 || $createdLands === $totalFeatures) {
+                    $progress = round(($createdLands / $totalFeatures) * 100, 2);
+                    Log::info("Progress: {$progress}%", [
+                        'processed' => $createdLands,
+                        'total' => $totalFeatures,
+                        'collection_id' => $landCollectionId
+                    ]);
+                }
+                $batch = [];
+                $batchParams = [];
             }
         }
 
-        // Drop statistics if they exist
-        if ($this->statisticsExists('lands_multi_stats')) {
-            DB::statement('DROP STATISTICS IF EXISTS lands_multi_stats');
+        return $createdLands;
+    }
+
+    private function validateGeoJSON($data)
+    {
+        Log::info("Starting GeoJSON validation");
+
+        if (!isset($data->type) || $data->type !== 'FeatureCollection') {
+            return "Missing or incorrect 'type' property";
         }
-    }
+        if (!isset($data->features) || !is_array($data->features)) {
+            return "Missing or invalid 'features' array";
+        }
+        if (!isset($data->name)) {
+            return "Missing 'name' property";
+        }
+        if (!isset($data->crs) || !isset($data->crs->type) || !isset($data->crs->properties->name)) {
+            return "Missing or invalid 'crs' property";
+        }
 
-    private function indexExists(string $indexName): bool
-    {
-        $result = DB::select("
-            SELECT 1 
-            FROM pg_indexes 
-            WHERE indexname = ?
-        ", [$indexName]);
+        foreach ($data->features as $index => $feature) {
+            if (!isset($feature->type) || $feature->type !== 'Feature') {
+                return "Invalid feature type at index $index";
+            }
 
-        return !empty($result);
-    }
+            if (!isset($feature->properties) || !is_object($feature->properties)) {
+                return "Missing or invalid 'properties' at feature index $index";
+            }
 
-    private function statisticsExists(string $statsName): bool
-    {
-        $result = DB::select("
-            SELECT 1 
-            FROM pg_statistic_ext 
-            WHERE stxname = ?
-        ", [$statsName]);
+            if (!isset($feature->geometry) || !is_object($feature->geometry)) {
+                return "Missing or invalid 'geometry' at feature index $index";
+            }
 
-        return !empty($result);
-    }
+            if (!isset($feature->geometry->type) || !isset($feature->geometry->coordinates)) {
+                return "Invalid geometry structure at feature index $index";
+            }
 
-    private function dropConflictingIndexes(): void
-    {
-        // Get list of indexes we want to replace
-        $conflictingIndexes = [
-            'lands_owner_id_idx',
-            'lands_collection_id_idx',
-            'lands_fixed_price_idx',
-            'lands_type_idx'
-        ];
-
-        foreach ($conflictingIndexes as $indexName) {
-            if ($this->indexExists($indexName)) {
-                DB::statement("DROP INDEX IF EXISTS {$indexName}");
+            if ($feature->geometry->type !== 'MultiPolygon' && $feature->geometry->type !== 'Polygon') {
+                return "Invalid geometry type at feature index $index. Expected 'MultiPolygon' or 'Polygon'";
             }
         }
+
+        Log::info("GeoJSON validation completed successfully");
+        return true;
     }
-};
+}

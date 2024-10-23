@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Log;
 
 class AdminLandCollectionController extends Controller
 {
+    const BATCH_SIZE = 1000;
+
+
     public function getCollections()
     {
         $collections = LandCollection::withCount('lands')->orderBy('created_at', 'desc')->get();
@@ -19,14 +22,16 @@ class AdminLandCollectionController extends Controller
 
         return response()->json($collections);
     }
-
+    
     public function getCollection($id)
     {
-
-        $collection = LandCollection::with('lands')->findOrFail($id);
+        $collection = LandCollection::with(['lands' => function($query) {
+            $query->select('id', 'land_collection_id'); // Select only needed fields
+        }])->findOrFail($id);
 
         return response()->json($collection);
     }
+
 
     public function deleteCollection($id)
     {
@@ -38,36 +43,57 @@ class AdminLandCollectionController extends Controller
                 return response()->json(['error' => 'Cannot delete collection containing sold land'], 400);
             }
 
-            // Start a database transaction
             DB::beginTransaction();
 
-            // Delete associated lands
-            $landsCount = $collection->lands()->count();
-            $deletedLandsCount = $collection->lands()->delete();
+            // Get total count for progress tracking
+            $totalLands = $collection->lands()->count();
+            $deletedCount = 0;
+            $logInterval = max(1, ceil($totalLands * 0.1)); // Log every 10%
 
-            if ($deletedLandsCount !== $landsCount) {
-                return response()->json(['error' => 'Failed to delete all associated lands'], 500);
+            // Delete lands in batches
+            while (true) {
+                $landIds = $collection->lands()
+                    ->select('id')
+                    ->limit(self::BATCH_SIZE)
+                    ->pluck('id');
+
+                if ($landIds->isEmpty()) {
+                    break;
+                }
+
+                $batchDeleteCount = $collection->lands()
+                    ->whereIn('id', $landIds)
+                    ->delete();
+
+                $deletedCount += $batchDeleteCount;
+
+                if ($deletedCount % $logInterval === 0 || $deletedCount === $totalLands) {
+                    $progress = round(($deletedCount / $totalLands) * 100, 2);
+                    Log::info("Deleting lands progress: {$progress}%", [
+                        'collection_id' => $id,
+                        'processed' => $deletedCount,
+                        'total' => $totalLands
+                    ]);
+                }
             }
 
             // Delete the collection
-            if (!$collection->delete()) {
-                return response()->json(['error' => 'Failed to delete the collection'], 500);
-            }
+            $collection->delete();
 
-            // Commit the transaction
             DB::commit();
 
-            return response()->json(['message' => 'Collection and associated lands deleted successfully'], 200);
-        } catch (\Exception $e) {
-            // Rollback the transaction in case of any error
-            DB::rollBack();
+            return response()->json([
+                'message' => 'Collection and associated lands deleted successfully',
+                'deleted_lands_count' => $deletedCount
+            ]);
 
+        } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Delete failed', [
                 'collection_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-
             return response()->json(['error' => 'Delete failed: ' . $e->getMessage()], 500);
         }
     }
@@ -100,12 +126,52 @@ class AdminLandCollectionController extends Controller
     {
         try {
             $collection = LandCollection::findOrFail($collectionId);
-            if ($collection->lockLands()) {
-                return response()->json(['message' => 'Lands locked successfully'], 200);
-            } else {
-                return response()->json(['error' => 'Lock operation failed'], 400);
+            
+            DB::beginTransaction();
+
+            $totalLands = $collection->lands()->count();
+            $processedCount = 0;
+            $logInterval = max(1, ceil($totalLands * 0.1));
+
+            // Process in batches
+            while (true) {
+                $lands = $collection->lands()
+                    ->where('is_locked', false)
+                    ->limit(self::BATCH_SIZE)
+                    ->pluck('id');
+
+                if ($lands->isEmpty()) {
+                    break;
+                }
+
+                $updateCount = $collection->lands()
+                    ->whereIn('id', $lands)
+                    ->update(['is_locked' => true]);
+
+                $processedCount += $updateCount;
+
+                if ($processedCount % $logInterval === 0 || $processedCount === $totalLands) {
+                    $progress = round(($processedCount / $totalLands) * 100, 2);
+                    Log::info("Locking lands progress: {$progress}%", [
+                        'collection_id' => $collectionId,
+                        'processed' => $processedCount,
+                        'total' => $totalLands
+                    ]);
+                }
             }
+
+            $collection->is_locked = true;
+            $collection->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Lands locked successfully',
+                'processed_count' => $processedCount
+            ]);
+
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Lock lands failed', [
                 'collection_id' => $collectionId,
                 'error' => $e->getMessage(),
@@ -119,19 +185,60 @@ class AdminLandCollectionController extends Controller
     {
         try {
             $collection = LandCollection::findOrFail($collectionId);
-            $result = $collection->unlockLands();
-            if ($result === true) {
-                return response()->json(['message' => 'Lands unlocked successfully'], 200);
-            } elseif ($result === 'scratch_box') {
+
+            // Check for scratch box condition first
+            if ($collection->type === 'scratch_box') {
                 return response()->json([
                     'error' => 'This collection cannot be unlocked.',
                     'reason' => 'Land is in a scratch box'
                 ], 400);
-            } else {
-                Log::error('Unlock operation failed with unknown result', ['result' => $result]);
-                return response()->json(['error' => 'Unlock operation failed'], 400);
             }
+
+            DB::beginTransaction();
+
+            $totalLands = $collection->lands()->count();
+            $processedCount = 0;
+            $logInterval = max(1, ceil($totalLands * 0.1));
+
+            // Process in batches
+            while (true) {
+                $lands = $collection->lands()
+                    ->where('is_locked', true)
+                    ->limit(self::BATCH_SIZE)
+                    ->pluck('id');
+
+                if ($lands->isEmpty()) {
+                    break;
+                }
+
+                $updateCount = $collection->lands()
+                    ->whereIn('id', $lands)
+                    ->update(['is_locked' => false]);
+
+                $processedCount += $updateCount;
+
+                if ($processedCount % $logInterval === 0 || $processedCount === $totalLands) {
+                    $progress = round(($processedCount / $totalLands) * 100, 2);
+                    Log::info("Unlocking lands progress: {$progress}%", [
+                        'collection_id' => $collectionId,
+                        'processed' => $processedCount,
+                        'total' => $totalLands
+                    ]);
+                }
+            }
+
+            $collection->is_locked = false;
+            $collection->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Lands unlocked successfully',
+                'processed_count' => $processedCount
+            ]);
+
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Unlock lands failed', [
                 'collection_id' => $collectionId,
                 'error' => $e->getMessage(),
@@ -172,13 +279,53 @@ class AdminLandCollectionController extends Controller
 
         try {
             $collection = LandCollection::findOrFail($id);
-            if ($collection->updateLandType($request->type)) {
+            
+            DB::beginTransaction();
 
-                return response()->json(['message' => 'Land type updated successfully'], 200);
-            } else {
-                return response()->json(['error' => 'Update operation failed'], 400);
+            $totalLands = $collection->lands()->count();
+            $processedCount = 0;
+            $logInterval = max(1, ceil($totalLands * 0.1));
+
+            // Process in batches
+            while (true) {
+                $lands = $collection->lands()
+                    ->where('type', '!=', $request->type)
+                    ->limit(self::BATCH_SIZE)
+                    ->pluck('id');
+
+                if ($lands->isEmpty()) {
+                    break;
+                }
+
+                $updateCount = $collection->lands()
+                    ->whereIn('id', $lands)
+                    ->update(['type' => $request->type]);
+
+                $processedCount += $updateCount;
+
+                if ($processedCount % $logInterval === 0 || $processedCount === $totalLands) {
+                    $progress = round(($processedCount / $totalLands) * 100, 2);
+                    Log::info("Updating land type progress: {$progress}%", [
+                        'collection_id' => $id,
+                        'type' => $request->type,
+                        'processed' => $processedCount,
+                        'total' => $totalLands
+                    ]);
+                }
             }
+
+            $collection->type = $request->type;
+            $collection->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Land type updated successfully',
+                'processed_count' => $processedCount
+            ]);
+
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Update land type failed', [
                 'collection_id' => $id,
                 'error' => $e->getMessage(),
